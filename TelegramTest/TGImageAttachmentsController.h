@@ -18,6 +18,8 @@
 
 @interface TGImageAttachmentsController : TMView
 
+@property (nonatomic,strong,readonly) TL_conversation *conversation;
+
 
 @property (nonatomic,weak) id<TGImageAttachmentsControllerDelegate> delegate;
 
@@ -31,6 +33,7 @@
 -(void)removeItem:(TGImageAttachment *)attachment animated:(BOOL)animated;
 
 -(NSArray *)attachments;
+
 
 
 @end

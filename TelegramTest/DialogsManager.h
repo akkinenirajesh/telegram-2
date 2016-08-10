@@ -8,9 +8,7 @@
 
 #import <Foundation/Foundation.h>
 #import "SharedManager.h"
-#import "ContentDelegate.h"
 @interface DialogsManager : SharedManager
-@property (nonatomic,strong) id <ContentDelegate> delegate;
 
 
 - (void)updateTop:(TLMessage *)message needUpdate:(BOOL)needUpdate update_real_date:(BOOL)update_real_date;
@@ -45,6 +43,7 @@
 
 -(void)notifyAfterUpdateConversation:(TL_conversation *)conversation;
 
-- (void)add:(NSArray *)all updateCurrent:(BOOL)updateCurrent;
+- (SSignal *)add:(NSArray *)all updateCurrent:(BOOL)updateCurrent;
+- (SSignal *)add:(NSArray *)all updateCurrent:(BOOL)updateCurrent autoStart:(BOOL)autoStart;
 
 @end

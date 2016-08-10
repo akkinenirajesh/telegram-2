@@ -246,7 +246,7 @@
         TL_localMessage *message = [TL_localMessage convertReceivedMessage:[(TL_updateNewChannelMessage *)update message]];
         
         
-        if((message.from_id > 0 && ![[UsersManager sharedManager] find:message.from_id]) || (message.fwd_from != nil && !message.fwdObject) || ((message.via_bot_id != 0 && ![[UsersManager sharedManager] find:message.via_bot_id]) || [TGProccessUpdates checkMessageEntityUsers:message])) {
+        if((message.from_id > 0 && !message.fromUser) || (message.fwd_from != nil && !message.fwdObject) || ((message.via_bot_id != 0 && ![[UsersManager sharedManager] find:message.via_bot_id]) || ![TGProccessUpdates checkMessageEntityUsers:message])) {
             
             
             [self failUpdateWithChannelId:[self channelIdWithUpdate:update] limit:50 withCallback:nil errorCallback:nil];
@@ -419,7 +419,7 @@
         
         
         dispatch_block_t dispatch = ^{
-            if(!chat.left && chat.type != TLChatTypeForbidden) {
+            if(!chat.isLeft && chat.type != TLChatTypeForbidden) {
                 
                 [[ChatFullManager sharedManager] requestChatFull:chat.n_id withCallback:^(TLChatFull *fullChat) {
                    
@@ -449,6 +449,10 @@
                         channel.invisibleChannel = NO;
                         [channel save];
                         [self failUpdateWithChannelId:[update channel_id] limit:50 withCallback:nil errorCallback:nil];
+                        
+                        if([[DialogsManager sharedManager] find:-fullChat.migrated_from_chat_id]) {
+                            [Notification perform:SWAP_DIALOG data:@{@"o":@(-fullChat.migrated_from_chat_id),@"n":@(channel.peer_id)}];
+                        }
                     }
                 
                 }];
@@ -546,11 +550,11 @@
             _channelsInUpdating[@(channel_id)] = [RPCRequest sendRequest:[TLAPI_updates_getChannelDifference createWithChannel:[TL_inputChannel createWithChannel_id:channel_id access_hash:channel.access_hash] filter:[TL_channelMessagesFilterEmpty create] pts:[self ptsWithChannelId:channel_id] limit:limit] successHandler:^(id request, id response) {
                 
                 
-               if(channel && channel.left)
+               if(channel && channel.isLeft)
                    return;
                 
                 TGMessageHole *longHole;
-                
+                BOOL dispatched = NO;
                 
                 if([response isKindOfClass:[TL_updates_channelDifferenceEmpty class]]) {
                     
@@ -559,13 +563,20 @@
                     
                     if(conversation.pts < [response pts]) {
                         
-                        [TL_localMessage convertReceivedMessages:[response n_messages]];
+                        NSMutableArray *messages = [[response n_messages] mutableCopy];
                         
-                        // 
-                        // add check remote dialog unread count with current read_inbox_max_id
-                        //
+                        [[response n_messages] removeAllObjects];
                         
-                        [self proccessHoleWithNewMessage:[response n_messages] channel:channel];
+                        [SharedManager proccessGlobalResponse:response];
+                        
+                        [TL_localMessage convertReceivedMessages:messages];
+                        
+                        
+                        [[DialogsManager sharedManager] markChannelMessagesAsRead:channel_id max_id:conversation.read_inbox_max_id n_out:NO completionHandler:nil];
+
+
+                        
+                        [self proccessHoleWithNewMessage:messages channel:channel];
                         
                         [[response other_updates] enumerateObjectsUsingBlock:^(TLUpdate *obj, NSUInteger idx, BOOL *stop) {
                             
@@ -621,11 +632,22 @@
                         [[DialogsManager sharedManager] notifyAfterUpdateConversation:conversation];
                         
                         
- 
                         
                         // insert holes
                         {
-                            [[Storage manager] addHolesAroundMessage:topMsg];  
+                            dispatched = YES;
+                            
+                            [[Storage manager] addHolesAroundMessage:topMsg completionHandler:^(TGMessageHole *hole,BOOL next) {
+                                
+                                if(callback != nil)
+                                {
+                                    callback(response,hole);
+                                    
+                                }
+                                
+                            }];
+                            
+                            
                         }
                     }
                     
@@ -635,7 +657,7 @@
                 }
                 
                 
-                if(callback != nil)
+                if(callback != nil && !dispatched)
                 {
                     callback(response,longHole);
                 }

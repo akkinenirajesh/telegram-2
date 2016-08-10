@@ -1,4 +1,4 @@
-//
+ //
 //  AppDelegate.m
 //  TelegramTest
 //
@@ -14,10 +14,8 @@
 #import "TGSecretAction.h"
 #ifdef TGDEBUG
 #import <Sparkle/Sparkle.h>
-#import "FFYDaemonController.h"
 #endif
 
-#import "ImageStorage.h"
 #import "FileUtils.h"
 #import "MTNetwork.h"
 #import "MessageSender.h"
@@ -47,13 +45,13 @@
 #import "MessageInputGrowingTextView.h"
 #import "MessagesBottomView.h"
 #import "TGAudioPlayerWindow.h"
-#import "TGUpdater.h"
 #import "TGHeadChatPanel.h"
 #import "NSArrayCategory.h"
 #import "FullUsersManager.h"
 #import "TGStickerPreviewModalView.h"
 #import "SPMediaKeyTap.h"
 #import "TGAudioPlayerWindow.h"
+#import <SSignalKit/SSignal.h>
 @interface NSUserNotification(For107)
 
 @property (nonatomic, strong) NSAttributedString *response;
@@ -98,18 +96,27 @@
 static void TGTelegramLoggingFunction(NSString *format, va_list args)
 {
 #ifdef TGDEBUG
+#ifndef TGSTABLE
+    
     TGLogv(format, args);
+#endif
 #endif
 }
 
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
     
+
+    
+#ifdef TGDEBUG
+    
     
     _mediaKeyTap = [[SPMediaKeyTap alloc] initWithDelegate:self];
     
     if([SPMediaKeyTap usesGlobalMediaKeyTap] && [SettingsArchiver checkMaskedSetting:HandleMediaKeysSettings])
         [_mediaKeyTap startWatchingMediaKeys];
+    
+#endif
 
 
     MTLogSetLoggingFunction(&TGTelegramLoggingFunction);
@@ -355,6 +362,7 @@ void exceptionHandler(NSException * exception)
 
 - (void)initializeUpdater {
     
+
     
 #ifdef TGDEBUG
     
@@ -534,26 +542,32 @@ void exceptionHandler(NSException * exception)
             
             if(![TMViewController isModalActive]) {
                 
-                BOOL res = [appWindow().navigationController.messagesViewController.bottomView removeQuickRecord];
-                
-                if(!res) {
-                    
-                    if([[TMAudioRecorder sharedInstance] isRecording]) {
-                        [appWindow().navigationController.messagesViewController.bottomView startOrStopQuickRecord];
-                        return incomingEvent;
+//                BOOL res = [appWindow().navigationController.messagesViewController.bottomView removeQuickRecord];
+//                
+//                if(!res) {
+//                    
+//                    if([[TMAudioRecorder sharedInstance] isRecording]) {
+//                        [appWindow().navigationController.messagesViewController.bottomView startOrStopQuickRecord];
+//                        return incomingEvent;
+//                        
+//                    }
+//                    
+                    if(![appWindow().navigationController.currentController proccessEscAction]) {
                         
-                    }
-                    
-                    if(![appWindow().navigationController.messagesViewController proccessEscAction]) {
-                        if(appWindow().navigationController.messagesViewController.inputText.length > 0) {
+                        [appWindow().navigationController goBackWithAnimation:YES];
+                        
+                        if(appWindow().navigationController.messagesViewController.conversation.inputTemplate.attributedString.length > 0) {
                             return incomingEvent;
                         } else {
-                            [[[Telegram sharedInstance] firstController] backOrClose:[[NSMenuItem alloc] initWithTitle:@"Profile.Back" action:@selector(backOrClose:) keyEquivalent:@""]];
+                            
+                            [appWindow().navigationController goBackWithAnimation:YES];
+                            
+                           // [[[Telegram sharedInstance] firstController] backOrClose:[[NSMenuItem alloc] initWithTitle:@"Profile.Back" action:@selector(backOrClose:) keyEquivalent:@""]];
                         }
                     }
-                    
-                    
-                }
+//
+//                    
+//                }
                 
                 
             
@@ -613,8 +627,13 @@ void exceptionHandler(NSException * exception)
                 return [[NSEvent alloc] init];
             }
         } else if(![responder isKindOfClass:[NSTextView class]] || ![responder isEditable]) {
-            if(incomingEvent.modifierFlags == 256 && [Telegram rightViewController].navigationViewController.currentController == [Telegram rightViewController].messagesViewController) {
-                [[[Telegram rightViewController] messagesViewController] becomeFirstResponder];
+            if(incomingEvent.modifierFlags == 256 && appWindow().navigationController.currentController == appWindow().navigationController.messagesViewController) {
+                if(![TMViewController isModalActive])
+                    [appWindow().navigationController.messagesViewController becomeFirstResponder];
+                else
+                {
+                    [TMViewController becomeFirstResponderToModalView];
+                }
             }
         }
         
@@ -646,8 +665,24 @@ void exceptionHandler(NSException * exception)
             
         }
         
-        if((![responder isKindOfClass:[NSTextView class]] || ![responder isEditable]) && [SelectTextManager count] == 0  && ![responder isKindOfClass:[TGCTextView class]])
-            [[Telegram rightViewController] becomeFirstResponder];
+        if((![responder isKindOfClass:[NSTextView class]] || ![responder isEditable]) && [SelectTextManager count] == 0  && ![responder isKindOfClass:[TGCTextView class]] && ![responder isKindOfClass:[TGModalView class]]) {
+            if(![TMViewController isModalActive]) {
+                if([appWindow().navigationController becomeFirstResponder]) {
+                    
+                    if(result.keyCode == 9 && (result.modifierFlags & NSCommandKeyMask) > 0) {
+                        if([appWindow().navigationController.currentController isKindOfClass:[MessagesViewController class]]) {
+                            [appWindow().navigationController.messagesViewController paste:nil];
+                        }
+                    }
+                    
+                }
+            } else {
+                 [TMViewController becomeFirstResponderToModalView];
+            }
+            
+            
+        }
+        
         
         if([TGPasslock isVisibility]) {
            
@@ -659,12 +694,15 @@ void exceptionHandler(NSException * exception)
         
         if(result.keyCode == 48) {
           //  NSTextView *textView = responder;
-            if([responder isKindOfClass:[MessageInputGrowingTextView class]] ) {
-                [appWindow().navigationController.messagesViewController.bottomView smileButtonClick:nil];
-                
-            }
+            
             
             return [[NSEvent alloc]init];
+        }
+        
+        if(isEnterAccess(result)) {
+            if([appWindow().navigationController.currentController proccessEnterAction]) {
+                return [[NSEvent alloc] init];
+            }
         }
     
         
@@ -676,10 +714,10 @@ void exceptionHandler(NSException * exception)
                 
                  return [[NSEvent alloc]init];
             } else if(result.keyCode == 15) { // cmd+r for audio record
-                if(buttonRecordIsUp) {
-                    buttonRecordIsUp = NO;
-                    [appWindow().navigationController.messagesViewController.bottomView startOrStopQuickRecord];
-                }
+//                if(buttonRecordIsUp) {
+//                    buttonRecordIsUp = NO;
+//                    [appWindow().navigationController.messagesViewController.bottomView startOrStopQuickRecord];
+//                }
                 return [[NSEvent alloc]init];
                 
             }
@@ -730,6 +768,12 @@ void exceptionHandler(NSException * exception)
                 
             }
             
+            
+            if(result.type == NSLeftMouseUp) {
+                
+                if([result.window.firstResponder isKindOfClass:[NSClassFromString(@"TGMessagesTextView") class]])
+                    [result.window.firstResponder mouseUp:result];
+            }
             
             if(result.type == NSLeftMouseUp && [TMViewController isModalActive]) {
                 
@@ -951,6 +995,7 @@ void exceptionHandler(NSException * exception)
             
             [Storage drop];
             
+            
             [[NSUserNotificationCenter defaultUserNotificationCenter] removeAllDeliveredNotifications];
             
             [Storage open:^{
@@ -1037,9 +1082,7 @@ void exceptionHandler(NSException * exception)
 }
 
 
-- (IBAction)clearImagesCache:(id)sender {
-    [ImageStorage clearCache];
-}
+
 
 - (IBAction)updateProfilePhoto:(id)sender {
     
@@ -1132,9 +1175,12 @@ continueUserActivity: (id)userActivity
             
             [self.mainWindow.navigationController showMessagesViewController:conversation];
             
-            [[Telegram rightViewController].messagesViewController setStringValueToTextField:text];
+            TGInputMessageTemplate *template = conversation.inputTemplate;
             
-            BOOL didSetText = [[Telegram rightViewController].messagesViewController.inputText isEqualToString:text];
+            [template updateTextAndSave:[[NSAttributedString alloc] initWithString:text]];
+            [template performNotification];
+            
+            BOOL didSetText = YES;
             
             
             if (didSetText)

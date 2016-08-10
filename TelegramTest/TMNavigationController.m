@@ -84,11 +84,11 @@ static const int navigationOffset = 48;
     
     // [self.containerView addSubview:_connectionController];
     
-    self.nagivationBarView = [[TMNavigationBar alloc] initWithFrame:NSMakeRect(0, self.view.bounds.size.height-navigationOffset, self.view.bounds.size.width, navigationHeight)];
+   // self.nagivationBarView = [[TMNavigationBar alloc] initWithFrame:NSMakeRect(0, self.view.bounds.size.height-navigationOffset, self.view.bounds.size.width, navigationHeight)];
     
 //    [self.nagivationBarView setWantsLayer:YES];
 //    [self.nagivationBarView.layer setBackgroundColor:NSColorFromRGBWithAlpha(0xffffff, 0.9).CGColor];
-    [self.view addSubview:self.nagivationBarView];
+   // [self.view addSubview:self.nagivationBarView];
 }
 
 
@@ -221,6 +221,10 @@ static const int navigationOffset = 48;
     return _animationView;
 }
 
+-(BOOL)becomeFirstResponder {
+    return [self.currentController becomeFirstResponder];
+}
+
 - (void)pop_animationDidStart:(POPAnimation *)anim {
     NSView *view = [self.containerView.subviews lastObject];
     [view.layer setOpacity:1];
@@ -243,14 +247,14 @@ static const int navigationOffset = 48;
             [obj willChangedController:newViewController];
     }];
     
-    BOOL isNavigationBarHiddenOld = self.nagivationBarView.isHidden;
-    if(newViewController.isNavigationBarHidden != isNavigationBarHiddenOld) {
-        if(newViewController.isNavigationBarHidden) {
-            [self.nagivationBarView setHidden:YES];
-        } else {
-            [self.nagivationBarView setHidden:NO];
-        }
-    }
+//    BOOL isNavigationBarHiddenOld = self.nagivationBarView.isHidden;
+//    if(newViewController.isNavigationBarHidden != isNavigationBarHiddenOld) {
+//        if(newViewController.isNavigationBarHidden) {
+//            [self.nagivationBarView setHidden:YES];
+//        } else {
+//            [self.nagivationBarView setHidden:NO];
+//        }
+//    }
     
     __block TMViewController *oldViewController = self.currentController;
     
@@ -288,10 +292,35 @@ static const int navigationOffset = 48;
     newView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
     
     BOOL isAnimate = !(!newView || !animationFlag);
+    
+    [newViewController.navigationBarView setFrame:NSMakeRect(0, NSHeight(self.view.frame) - navigationHeight, NSWidth(self.view.frame), navigationHeight)];
 
-    [self.nagivationBarView setLeftView:newViewController.leftNavigationBarView animated:NO];
-    [self.nagivationBarView setCenterView:newViewController.centerNavigationBarView animated:NO];
-    [self.nagivationBarView setRightView:newViewController.rightNavigationBarView animated:NO];
+
+    [newViewController.navigationBarView setLeftView:newViewController.leftNavigationBarView animated:NO];
+    [newViewController.navigationBarView setCenterView:newViewController.centerNavigationBarView animated:NO];
+    [newViewController.navigationBarView setRightView:newViewController.rightNavigationBarView animated:NO];
+    
+    
+    NSMutableArray *trm = [NSMutableArray array];
+    
+    [self.view.subviews enumerateObjectsUsingBlock:^(__kindof NSView * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+        
+        if([obj isKindOfClass:[TMNavigationBar class]]) {
+            [trm addObject:obj];
+        }
+        
+    }];
+    
+    
+    if(!newViewController.isNavigationBarHidden) {
+        [self.view addSubview:newViewController.navigationBarView];
+        newViewController.navigationBarView.alphaValue = 1.0f;
+    }
+    
+
+    
+    
+   
     
    // if(newView.superview) {
       //  [newView removeFromSuperview];
@@ -324,6 +353,12 @@ static const int navigationOffset = 48;
     if (!isAnimate) {
         // Add the new view
         
+        [trm enumerateObjectsUsingBlock:^(TMView  *obj, NSUInteger idx, BOOL * _Nonnull stop) {
+            [obj removeFromSuperview];
+        }];
+        
+        
+        
         if(oldViewController && oldViewController != newViewController && [self.viewControllerStack indexOfObject:oldViewController] == NSNotFound)
             [oldViewController _didStackRemoved];
                 
@@ -334,9 +369,9 @@ static const int navigationOffset = 48;
         
         [newView setHidden:NO];
         
-        [newViewController viewWillAppear:NO];
         [self.containerView addSubview:newView positioned:NSWindowAbove relativeTo:oldView];
-        
+        [newViewController viewWillAppear:NO];
+
         
         [oldViewController viewDidDisappear:NO];
         [newViewController viewDidAppear:NO];
@@ -358,8 +393,6 @@ static const int navigationOffset = 48;
         
      
         
-        
-        
         [newView setHidden:NO];
         
         
@@ -370,7 +403,6 @@ static const int navigationOffset = 48;
     
         float duration = 0.25;
         
-        [newViewController viewWillAppear:NO];
         
         float animOldFrom,animOldTo,animNewTo,animNewFrom = 0;
         
@@ -411,6 +443,46 @@ static const int navigationOffset = 48;
             default:
                 break;
         }
+        [newViewController viewWillAppear:YES];
+
+        
+        // bar animation
+        
+        
+        [trm enumerateObjectsUsingBlock:^(TMView  *obj, NSUInteger idx, BOOL * _Nonnull stop) {
+            
+            
+            [NSAnimationContext runAnimationGroup:^(NSAnimationContext * _Nonnull context) {
+                [context setTimingFunction:[CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut]];
+                [[obj animator] setFrameOrigin:NSMakePoint(animOldTo, NSMinY(obj.frame))];
+                [[obj animator] setAlphaValue:0.2];
+            } completionHandler:^{
+                [obj removeFromSuperview];
+            }];
+            
+            
+        }];
+        
+        
+        if(isAnimate) {
+            
+            newViewController.navigationBarView.alphaValue = 0.2;
+            
+            [newViewController.navigationBarView setFrameOrigin:NSMakePoint(NSMaxX(self.view.frame), NSMinY(newViewController.navigationBarView.frame))];
+            
+            [NSAnimationContext runAnimationGroup:^(NSAnimationContext * _Nonnull context) {
+                [context setTimingFunction:[CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut]];
+                [[newViewController.navigationBarView animator] setFrameOrigin:NSMakePoint(animNewTo, NSMinY(newViewController.navigationBarView.frame))];
+                [[newViewController.navigationBarView animator] setAlphaValue:1.0f];
+            } completionHandler:^{
+                
+            }];
+        } else {
+            newViewController.navigationBarView.alphaValue = 1.0f;
+        }
+
+        
+        // end bar animation
         
         
         __block int two = 2;
@@ -708,13 +780,32 @@ static const int navigationOffset = 48;
 
 -(void)showMessagesViewController:(TL_conversation *)conversation {
     
+#ifndef TGSTABLE
+//    
+#ifndef TGDEBUG
+    
+    
     if(conversation.chat && [conversation.chat isKindOfClass:[TLChat class]] && conversation.chat.isRestricted) {
         
-        alert(appName(), conversation.chat.restriction_reason);
-                
-        return;
+        NSString *reason = conversation.chat.restriction_reason;
+        
+        NSArray *split = [reason componentsSeparatedByString:@":"];
+        
+        if(split.count == 2 && ([split[0] rangeOfString:@"ios"].location != NSNotFound || [split[0] rangeOfString:@"all"].location != NSNotFound  || [split[0] rangeOfString:@"macos"].location != NSNotFound )) {
+            alert(appName(), split[1]);
+            
+            return;
+        }
+        
+        
         
     }
+    
+#endif
+//    
+#endif
+    
+    
     
     [self.messagesViewController setCurrentConversation:conversation];
     

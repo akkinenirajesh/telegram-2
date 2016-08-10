@@ -41,7 +41,7 @@
     self = [super initWithFrame:frame];
     if (self) {
         
-        self.containerView.isFlipped = NO;
+       // self.containerView.isFlipped = YES;
         
         weak();
         
@@ -102,7 +102,7 @@
         [self.containerView setDrawBlock:^{
            
             if(!self.item.message.readedContent && !weakSelf.item.messageSender && (!weakSelf.item.downloadItem || weakSelf.item.downloadItem.downloadState == DownloadStateCompleted) && globalAudioPlayer().delegate != weakSelf.audioItem && !weakSelf.item.message.chat.isChannel) {
-                [NSColorFromRGB(0x4ba3e2) setFill];
+                [BLUE_COLOR setFill];
                 
                 NSBezierPath *path = [NSBezierPath bezierPath];
                 
@@ -345,8 +345,8 @@
     
     int c = roundf((NSHeight(self.containerView.frame) - NSHeight(self.durationView.frame))/2);
     
-    [_waveformView setFrameOrigin:NSMakePoint(NSMaxX(_playView.frame) + item.defaultOffset, roundf((NSHeight(self.containerView.frame) - NSHeight(_waveformView.frame))/2) + item.defaultContentOffset )];
-    [self.durationView setFrameOrigin:NSMakePoint(NSMaxX(_playView.frame) + item.defaultOffset, c - NSHeight(self.durationView.frame) - 2)];
+    [_waveformView setFrameOrigin:NSMakePoint(NSMaxX(_playView.frame) + item.defaultOffset,   item.defaultContentOffset )];
+    [self.durationView setFrameOrigin:NSMakePoint(NSMaxX(_playView.frame) + item.defaultOffset, item.defaultContentOffset + NSHeight(_waveformView.frame) + item.defaultContentOffset)];
  
     if(item.state != AudioStatePlaying && item.state != AudioStatePaused)
         [self updateCellState:NO];

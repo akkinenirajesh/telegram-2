@@ -107,6 +107,8 @@ static NSMutableDictionary *stickers;
     return stickers;
 }
 
+
+
 +(NSArray *)allSets {
     
     //if(!sets) {
@@ -181,7 +183,7 @@ static NSMutableDictionary *stickers;
 
 -(void)show {
     
-    BOOL needShowStickers = [[NSUserDefaults standardUserDefaults] boolForKey:@"needShowStickers"];
+    BOOL needShowStickers = [[NSUserDefaults standardUserDefaults] boolForKey:@"needShowStickers"] && _messagesViewController;
     
     [self.navigationViewController clear];
     [self.navigationViewController pushViewController:!needShowStickers ? _emojiViewController : _sgViewController animated:NO];
@@ -227,6 +229,35 @@ static NSMutableDictionary *stickers;
 -(void)setEpopover:(RBLPopover *)epopover {
     _epopover = epopover;
     _emojiViewController.epopover = epopover;
+}
+
++(SSignal *)stickersSignal:(TLStickerSet *)stickerSet {
+    return [[SSignal alloc] initWithGenerator:^id<SDisposable>(SSubscriber *subscriber) {
+        
+        
+        NSArray *stickers = [TGModernESGViewController stickersWithId:stickerSet.n_id];
+        
+        if(stickers) {
+            [subscriber putNext:stickers];
+            [subscriber putCompletion];
+        } else {
+            
+            [TMViewController showModalProgress];
+            
+            [[[MTNetwork instance] requestSignal:[TLAPI_messages_getStickerSet createWithStickerset:[TL_inputStickerSetID createWithN_id:stickerSet.n_id access_hash:stickerSet.access_hash]]] startWithNext:^(TL_messages_stickerSet *next) {
+                
+                [TMViewController hideModalProgressWithSuccess];
+
+                
+                [subscriber putNext:next.documents];
+                [subscriber putCompletion];
+            } error:^(id error) {
+                [TMViewController hideModalProgress];
+            } completed:nil];
+        }
+        
+        return nil;
+    }];
 }
 
 @end

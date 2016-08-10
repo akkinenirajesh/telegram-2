@@ -202,7 +202,7 @@
         
         id manager = [NSClassFromString(@"Storage") performSelector:@selector(manager)];
         
-        id file = [manager performSelector:@selector(fileInfoByPathHash:) withObject:self.fileMD5Hash];
+        id file = _uploadType == UploadImageType || UploadDocumentType ? [manager performSelector:@selector(fileInfoByPathHash:) withObject:self.fileMD5Hash] : nil;
         
         if(!file && _uploaderRequestFileHash) {
             file = _uploaderRequestFileHash(self);
@@ -238,7 +238,7 @@
         self.total_parts = ceil(self.total_size / 1.0 / self.part_size);
     }
     
-    [[ASQueue mainQueue] dispatchOnQueue:^{
+    [ASQueue dispatchOnMainQueue:^{
         if(self.uploadStarted)
             self.uploadStarted(self, self.fileData);
         
@@ -247,7 +247,7 @@
             if(self.uploadTypingNeed && self.uploadState == UploadExecuting)
                 self.uploadTypingNeed(self);
             
-        } queue:[ASQueue globalQueue].nativeQueue];
+        } queue:[ASQueue globalQueue]._dispatch_queue];
         
         [self.typingTimer start];
     }];
@@ -425,8 +425,7 @@
 - (void)saveFileInfo:(id)fileInfo {
     if(!self.isEncrypted && _fileMD5Hash.length > 0) {
         if(self.uploadType == UploadImageType ||
-           self.uploadType == UploadDocumentType ||
-           self.uploadType == UploadVideoType ) {
+           self.uploadType == UploadDocumentType) {
             
             id manager = [NSClassFromString(@"Storage") performSelector:@selector(manager)];
             

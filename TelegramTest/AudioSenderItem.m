@@ -32,7 +32,7 @@
         
         [attrs addObject:[TL_documentAttributeAudio createWithFlags:(1 << 10) duration:roundf(duration) title:nil performer:nil waveform:waveforms]];
 
-        TL_messageMediaDocument *audio = [TL_messageMediaDocument createWithDocument:[TL_document createWithN_id:0 access_hash:0 date:[[MTNetwork instance] getTime] mime_type:@"audio/ogg" size:(int)fileSize(filePath) thumb:[TL_photoSizeEmpty createWithType:@"x"] dc_id:0 attributes:attrs] caption:@""];
+        TL_messageMediaDocument *audio = [TL_messageMediaDocument createWithDocument:[TL_document createWithN_id:0 access_hash:0 date:[[MTNetwork instance] getTime] mime_type:@"audio/ogg" size:(int)fileSize(filePath) thumb:[TL_photoSizeEmpty createWithType:@"x"] dc_id:0 version:0 attributes:attrs] caption:@""];
         
         self.message = [MessageSender createOutMessage:@"" media:audio conversation:conversation additionFlags:additionFlags];
         
@@ -121,7 +121,7 @@
                     NSString *filePath = mediaFilePath(msg);
                     
                     
-                    if ([[NSFileManager defaultManager] isReadableFileAtPath:weakSelf.filePath]) {
+                    if ([[NSFileManager defaultManager] isReadableFileAtPath:[weakSelf.filePath stringByDeletingLastPathComponent]]) {
                         [[NSFileManager defaultManager] copyItemAtURL:[NSURL fileURLWithPath:weakSelf.filePath] toURL:[NSURL fileURLWithPath:filePath] error:nil];
                     }
                     
@@ -141,7 +141,7 @@
                     weakSelf.state = MessageSendingStateError;
                 }
                 
-            } timeout:0 queue:[ASQueue globalQueue].nativeQueue];
+            } timeout:0 queue:[ASQueue globalQueue]._dispatch_queue];
         }
         
     }];

@@ -61,7 +61,7 @@ static ChatHistoryController *observer;
         static dispatch_once_t onceToken;
         dispatch_once(&onceToken, ^{
             
-            queue = [ASQueue globalQueue];
+            queue =  [ASQueue globalQueue];
             
             listeners = [[NSMutableArray alloc] init];
             
@@ -145,7 +145,7 @@ static ChatHistoryController *observer;
     __block HistoryFilter *filter;
     
     
-    [ASQueue dispatchOnStageQueue:^{
+    [queue dispatchOnQueue:^{
        
         filter = [_filters lastObject];
         
@@ -193,8 +193,9 @@ static ChatHistoryController *observer;
 {
     __block HistoryFilter *filter;
     
-    [ASQueue dispatchOnStageQueue:^{
-        filter = _filters[index];
+    [queue dispatchOnQueue:^{
+        if(_filters.count > index)
+            filter = _filters[index];
     } synchronous:YES];
     
    return filter;
@@ -204,7 +205,7 @@ static ChatHistoryController *observer;
 -(HistoryFilter *)filterWithPeerId:(int)peer_id {
     __block HistoryFilter *filter;
     
-    [ASQueue dispatchOnStageQueue:^{
+    [queue dispatchOnQueue:^{
         [_filters enumerateObjectsUsingBlock:^(HistoryFilter *obj, NSUInteger idx, BOOL * _Nonnull stop) {
             
             if(obj.peer_id == peer_id)
@@ -268,7 +269,7 @@ static ChatHistoryController *observer;
 
 -(void)prevStateAsync:(void (^)(ChatHistoryState state,ChatHistoryController *controller))block {
     
-    [ASQueue dispatchOnStageQueue:^{
+    [queue dispatchOnQueue:^{
         
         HistoryFilter *filer = [self filterWithNext:NO];
                 
@@ -282,7 +283,7 @@ static ChatHistoryController *observer;
     
 }
 -(void)nextStateAsync:(void (^)(ChatHistoryState state,ChatHistoryController *controller))block {
-    [ASQueue dispatchOnStageQueue:^{
+    [queue dispatchOnQueue:^{
         
         HistoryFilter *filer = [self filterWithNext:YES];
         [ASQueue dispatchOnMainQueue:^{
@@ -343,7 +344,7 @@ static ChatHistoryController *observer;
             
             NSArray *converted = [controller.controller messageTableItemsFromMessages:accepted];
             
-            [[ASQueue mainQueue] dispatchOnQueue:^{
+            [ASQueue dispatchOnMainQueue:^{
                 [controller.controller receivedMessageList:converted inRange:range itsSelf:NO];
             }];
             
@@ -387,7 +388,7 @@ static ChatHistoryController *observer;
                         
                         if(message != nil) {
                             
-                            [[ASQueue mainQueue] dispatchOnQueue:^{
+                            [ASQueue dispatchOnMainQueue:^{
                                 [controller.controller deleteItems:@[message] orMessageIds:@[@(message.n_id)]];
                             }];
                         }
@@ -411,7 +412,7 @@ static ChatHistoryController *observer;
 -(void)setProccessing:(BOOL)isProccessing {
     
     
-    [ASQueue dispatchOnStageQueue:^{
+    [queue dispatchOnQueue:^{
         _proccessing = isProccessing;
     }];
     
@@ -454,7 +455,7 @@ static ChatHistoryController *observer;
                     
                     [obj clear];
                     
-                    [[ASQueue mainQueue] dispatchOnQueue:^{
+                    [ASQueue dispatchOnMainQueue:^{
                         [controller.controller flushMessages];
                     }];
                 }
@@ -503,7 +504,7 @@ static ChatHistoryController *observer;
                 
                 NSArray *converted = [obj.controller messageTableItemsFromMessages:@[message]];
                     
-                [[ASQueue mainQueue] dispatchOnQueue:^{
+                [ASQueue dispatchOnMainQueue:^{
                         
                     [obj.controller receivedMessageList:converted inRange:NSMakeRange(position+1, converted.count) itsSelf:NO];
                     
@@ -543,7 +544,7 @@ static const int maxCacheCount = 30;
 
 
 +(void)addLatestMessageItems:(NSArray *)items position:(int)position {
-    [ASQueue dispatchOnStageQueue:^{
+    [queue dispatchOnQueue:^{
         
         [items enumerateObjectsUsingBlock:^(MessageTableItem *  _Nonnull item, NSUInteger idx, BOOL * _Nonnull stop) {
             
@@ -575,7 +576,7 @@ static const int maxCacheCount = 30;
 
 +(void)clearLatestMessageItemsWithPeer:(TLPeer *)peer {
     
-    [ASQueue dispatchOnStageQueue:^{
+    [queue dispatchOnQueue:^{
         [lastMessageItems removeObjectForKey:@(peer.peer_id)];
     }];
     
@@ -586,7 +587,7 @@ static const int maxCacheCount = 30;
    
     self.proccessing = NO;
     
-   [[ASQueue mainQueue] dispatchOnQueue:^{
+   [ASQueue dispatchOnMainQueue:^{
         
        if(selectHandler)
             selectHandler(result,range,controller);
@@ -841,7 +842,7 @@ static const int maxCacheCount = 30;
                     
                     [controller updateMessageIds:filtred];
                     
-                    [[ASQueue mainQueue] dispatchOnQueue:^{
+                    [ASQueue dispatchOnMainQueue:^{
                         
                         [controller.controller receivedMessageList:copyItems inRange:NSMakeRange(0, filtred.count) itsSelf:YES];
                         
@@ -863,7 +864,7 @@ static const int maxCacheCount = 30;
                     callback();
             }];
             
-        }];
+        } synchronous:YES];
     };
     
     
@@ -893,7 +894,7 @@ static const int maxCacheCount = 30;
                     
                     [controller updateMessageIds:filtred];
 
-                    [[ASQueue mainQueue] dispatchOnQueue:^{
+                    [ASQueue dispatchOnMainQueue:^{
                         
                         [controller.controller receivedMessageList:items inRange:NSMakeRange(0, items.count) itsSelf:YES];
                         
@@ -925,7 +926,7 @@ static const int maxCacheCount = 30;
                 
             }
             
-        }];
+        } synchronous:YES];
 
     };
     
@@ -953,13 +954,7 @@ static const int maxCacheCount = 30;
                 
                 if(![checkItem.message isKindOfClass:[TL_destructMessage class]]) {
                     
-                    [listeners enumerateObjectsUsingBlock:^(WeakReference *obj, NSUInteger idx, BOOL * _Nonnull stop) {
-                        
-                        ChatHistoryController *controller = obj.nonretainedObjectValue;
-                        
-                        [controller updateItemId:checkItem.message.randomId withId:checkItem.message.n_id];
-                        
-                    }];
+                     [self updateItemId:checkItem.message.randomId withId:checkItem.message.n_id];
                     
                 }
                 
@@ -1048,5 +1043,16 @@ static const int maxCacheCount = 30;
     } synchronous:YES];
 }
 
+
++ (void)dispatchOnChatQueue:(dispatch_block_t)block {
+    [queue dispatchOnQueue:block];
+}
++ (void)dispatchOnChatQueue:(dispatch_block_t)block synchronous:(BOOL)synchronous {
+    [queue dispatchOnQueue:block synchronous:synchronous];
+}
+
++ (dispatch_queue_t)nativeQueue {
+    return queue.nativeQueue;
+}
 
 @end

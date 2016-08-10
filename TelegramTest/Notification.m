@@ -65,6 +65,7 @@ NSString *const KEY_LAST_CONVRESATION_DATA = @"KEY_LAST_CONVRESATION_DATA";
 NSString *const DIALOG_UPDATE = @"DIALOG_UPDATE";
 NSString *const DIALOG_DELETE = @"DIALOG_DELETE";
 NSString *const DIALOG_MOVE_POSITION = @"DIALOG_MOVE_POSITION";
+NSString *const SWAP_DIALOG = @"SWAP_DIALOG";
 
 NSString *const DIALOG_TO_TOP = @"DIALOG_TO_TOP";
 NSString *const DIALOG_CREATE_NEW = @"DIALOG_CREATE_NEW";
@@ -80,6 +81,7 @@ NSString *const UPDATE_MESSAGE_ITEM = @"UPDATE_MESSAGE_ITEM";
 
 NSString *const UPDATE_EDITED_MESSAGE = @"UPDATE_EDITED_MESSAGE";
 
+NSString *const ARCHIVE_STICKERS_CHANGED = @"ARCHIVE_STICKERS_CHANGED";
 
 NSString *const UPDATE_WEB_PAGE_ITEMS = @"UPDATE_WEB_PAGE_ITEM";
 NSString *const UPDATE_WEB_PAGES = @"UPDATE_WEB_PAGES";
@@ -97,6 +99,11 @@ NSString *const SHOW_ALERT_HINT_VIEW = @"SHOW_ALERT_HINT_VIEW";
 NSString *const UPDATE_CONTEXT_SWITCH = @"UPDATE_CONTEXT_SWITCH";
 NSString *const UPDATE_MESSAGE_TEMPLATE = @"UPDATE_MESSAGE_TEMPLATE";
 NSString *const CHAT_FLAGS_UPDATED = @"CHAT_FLAGS_UPDATED";
+NSString *const CONNECTION_STATUS_CHANGED = @"CONNECTION_STATUS_CHANGED";
+
+NSString *const DIALOGS_FLUSH_AND_RELOAD = @"DIALOGS_FLUSH_AND_RELOAD";
+
+
 
 NSString *const KEY_PREVIEW_OBJECT = @"preview_object";
 
@@ -170,6 +177,10 @@ NSString *const STICKERS_ALL_CHANGED = @"stickers_all_changed";
 + (NSString *) notificationNameByDialog:(TL_conversation *)dialog
                                    action:(NSString *) action {
     return [NSString stringWithFormat:@"%@_%d_%d", action, dialog.type, dialog.peer_id];
+}
+
++ (NSString *) cAction:(TL_conversation *)convesation action:(NSString *) action {
+    return [self notificationNameByDialog:convesation action:action];
 }
 
 + (NSString *)notificationForUser:(TLUser *)user action:(NSString *)action {

@@ -19,9 +19,13 @@
     
     NSSize size = [_result sizeForTextFieldForWidth:width - (self.xOffset * 2)];
     
-    self.height = MAX(25, size.height + 5);
+    self.height = MAX(22, size.height + 5);
     
     return YES;
+}
+
+-(TL_conversation *)conversation {
+    return [Telegram conversation];
 }
 
 @end

@@ -89,7 +89,7 @@
 }
 
 - (void)setStringValue:(NSString *)aString {
-    aString = [[aString htmlentities] singleLine];
+    aString = [aString singleLine];
     
     while(aString.length > 0 && [aString characterAtIndex:0] == ' ') {
         aString = [aString substringFromIndex:1];
@@ -349,6 +349,8 @@ static float duration = 0.1;
             [self.containerView setFrameOrigin:point];
             self.containerView.wantsLayer = NO;
         }];
+        
+        [CATransaction commit];
         [self.containerView.layer addAnimation:[TMAnimations postionWithDuration:duration fromValue:NSMakePoint(oldPoint.x, oldPoint.y) toValue:self.containerView.layer.position] forKey:@"position"];
     } else {
         [self.containerView setFrameOrigin:point];

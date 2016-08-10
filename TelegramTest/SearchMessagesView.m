@@ -8,6 +8,8 @@
 
 #import "SearchMessagesView.h"
 #import "SpacemanBlocks.h"
+#import "TGCalendarViewController.h"
+#import "TGCalendarStickRowItem.h"
 @interface SearchMessagesView ()<TMSearchTextFieldDelegate>
 @property (nonatomic,strong) TMSearchTextField *searchField;
 @property (nonatomic,strong) TMTextButton *cancelButton;
@@ -29,6 +31,10 @@
 @property (nonatomic,strong) NSMutableArray *messages;
 @property (nonatomic,assign) int currentIdx;
 
+
+@property (nonatomic,strong) TGCalendarViewController *calendarViewController;
+@property (nonatomic,strong) RBLPopover *popover;
+@property (nonatomic,strong) BTRButton *calendarButton;
 
 @end
 
@@ -77,19 +83,19 @@
         [self.nextButton setBackgroundImage:image_SearchDown() forControlState:BTRControlStateNormal];
         
         [self.prevButton addBlock:^(BTRControlEvents events) {
-           [weakSelf prev];
+           [weakSelf next];
         } forControlEvents:BTRControlEventClick];
         
         [self.nextButton addBlock:^(BTRControlEvents events) {
-           [weakSelf next];
+           [weakSelf prev];
         } forControlEvents:BTRControlEventClick];
         
         
         [self.prevButton setCenterByView:self];
         [self.nextButton setCenterByView:self];
         
-        [self.prevButton setFrameOrigin:NSMakePoint(23, NSMinY(self.prevButton.frame))];
-        [self.nextButton setFrameOrigin:NSMakePoint(46, NSMinY(self.prevButton.frame))];
+        [self.prevButton setFrameOrigin:NSMakePoint(20, NSMinY(self.prevButton.frame))];
+        [self.nextButton setFrameOrigin:NSMakePoint(48, NSMinY(self.prevButton.frame))];
         
         self.progressIndicator = [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(25, 0, 20, 20)];
         
@@ -105,18 +111,65 @@
         [self addSubview:self.prevButton];
         [self addSubview:self.nextButton];
         
+        
+        _calendarButton = [[BTRButton alloc] initWithFrame:NSMakeRect(0, 0, image_CalendarIcon().size.width, image_CalendarIcon().size.height)];
+        [_calendarButton setImage:image_CalendarIcon() forControlState:BTRControlStateNormal];
+        
+        
+        [_calendarButton addBlock:^(BTRControlEvents events) {
+            
+            weakSelf.calendarViewController = [[TGCalendarViewController alloc] initWithFrame:NSMakeRect(0, 0, 280, 200 + [TGCalendarStickRowItem height])];
+            
+            weakSelf.calendarViewController.messagesViewController = weakSelf.controller;
+            [weakSelf.calendarViewController loadViewIfNeeded];
+            [weakSelf.calendarViewController viewWillAppear:NO];
+
+            weakSelf.popover = [[RBLPopover alloc] initWithContentViewController:(NSViewController *)weakSelf.calendarViewController];
+            
+            [weakSelf.popover setDidCloseBlock:^(RBLPopover *popover){
+                _calendarViewController = nil;
+                _popover = nil;
+            }];
+            
+            weakSelf.calendarViewController.rblpopover = weakSelf.popover;
+            
+            
+            [weakSelf.popover showRelativeToRect:NSMakeRect(- 280.0/2.0 + NSWidth(_calendarButton.frame)/2.0, 0, 280, 240) ofView:weakSelf.calendarButton preferredEdge:CGRectMinYEdge];
+            
+        } forControlEvents:BTRControlEventClick];
+        
+        [_calendarButton setFrameOrigin:NSMakePoint(NSMaxX(_searchField.frame) + 10, NSMinY(_cancelButton.frame))];
+
+        [_calendarButton setCenteredYByView:self];
+        
+        [self addSubview:_calendarButton];
+        
+        
+        // calendar
+       
+        
+        
+        
+
     }
     
     return self;
+}
+
+-(void)setController:(MessagesViewController *)controller {
+    _controller = controller;
 }
 
 
 -(void)setFrameSize:(NSSize)newSize {
     [super setFrameSize:newSize];
     
-    [_searchField setFrameSize:NSMakeSize(newSize.width - 160, NSHeight(_searchField.frame))];
+    [_searchField setFrameSize:NSMakeSize(newSize.width - 200, NSHeight(_searchField.frame))];
     
-    int minX = NSMinX(self.searchField.frame) + NSWidth(self.searchField.frame);
+    [_calendarButton setFrameOrigin:NSMakePoint(NSMaxX(_searchField.frame) + 20, NSMinY(_calendarButton.frame))];
+    
+    
+    int minX =  NSMaxX(self.calendarButton.frame);
     int maxX = NSWidth(self.frame);
     
     int dif = ((maxX - minX) - NSWidth(self.cancelButton.frame)) /2;
@@ -186,9 +239,9 @@
 }
 
 -(void)updateSearchArrows {
-    [self.prevButton setBackgroundImage:self.messages.count == 0 ? image_SearchUpDisabled() : image_SearchUp() forControlState:BTRControlStateNormal];
+    [self.prevButton setBackgroundImage:_messages.count < 2 || _currentIdx >= _messages.count -1 ? image_SearchUpDisabled() : image_SearchUp() forControlState:BTRControlStateNormal];
     
-    [self.nextButton setBackgroundImage:self.messages.count == 0 ? image_SearchDownDisabled() : image_SearchDown() forControlState:BTRControlStateNormal];
+    [self.nextButton setBackgroundImage:_messages.count < 2 || _currentIdx <= 0 ? image_SearchDownDisabled() : image_SearchDown() forControlState:BTRControlStateNormal];
     
     
 }
@@ -198,25 +251,36 @@
     if(_messages.count == 0)
         return;
     
+    if(_currentIdx == _messages.count)
+        return;
+    
     if(++_currentIdx == _messages.count)
     {
-        _currentIdx = 0;
+        [self updateSearchArrows];
+        return;
     }
     
     _goToMessage(_messages[_currentIdx],_searchField.stringValue);
+    
+    [self updateSearchArrows];
 }
 
 -(void)prev {
     if(_messages.count == 0)
         return;
     
+    if(_currentIdx == -1)
+        return;
     
     if(--_currentIdx == -1)
     {
-        _currentIdx = (int)_messages.count - 1;
+        [self updateSearchArrows];
+        return;
     }
     
     _goToMessage(_messages[_currentIdx],_searchField.stringValue);
+    
+    [self updateSearchArrows];
 }
 
 -(void)setLocked:(BOOL)locked {

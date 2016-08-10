@@ -11,6 +11,7 @@
 #import "TGPhotoViewer.h"
 #import "TGEmbedModalView.h"
 #import "TGWebpageGifContainer.h"
+#import "TGWebpageDocumentContainer.h"
 @interface TGWebpageContainer ()
 @property (nonatomic,strong,readonly) TMView *containerView;
 @end
@@ -27,7 +28,7 @@
 }
 
 -(void)mouseDown:(NSEvent *)theEvent {
-    if(![self mouseInContainer:theEvent]) {
+    if(![self mouseInContainer:theEvent] || [self isKindOfClass:[TGWebpageDocumentContainer class]]) {
         [super mouseDown:theEvent];
     }
 }
@@ -202,6 +203,7 @@
         
         PreviewObject *previewObject =[[PreviewObject alloc] initWithMsdId:self.webpage.webpage.photo.n_id media:[self.webpage.webpage.photo.sizes lastObject] peer_id:0];
         
+        previewObject.reservedObject1 = self.item.message;
         previewObject.reservedObject = self.imageView.image;
         
         if([self.webpage.webpage.type isEqualToString:@"video"] && [self.webpage.webpage.embed_type isEqualToString:@"video/mp4"]) {

@@ -298,7 +298,7 @@
 }
 
 -(BOOL)unread {
-    return self.isN_out ? (self.conversation.read_outbox_max_id == 0 ? self.isUnread  : self.conversation.read_outbox_max_id < self.n_id) : (self.conversation.read_inbox_max_id < self.n_id || self.conversation.read_inbox_max_id > TGMINFAKEID);
+    return self.peer_id == [UsersManager currentUserId] ? NO :  self.isN_out ? (self.conversation.user.isBot || (self.conversation.chat.isChannel && !self.conversation.chat.isMegagroup) ? NO :  self.conversation.read_outbox_max_id == 0 ? YES  : self.conversation.read_outbox_max_id < self.n_id) : (self.conversation.read_inbox_max_id < self.n_id || self.conversation.read_inbox_max_id > TGMINFAKEID);
 }
 
 -(BOOL)readedContent {
@@ -433,7 +433,7 @@ DYNAMIC_PROPERTY(DDialog);
 
 -(BOOL)canEdit {
     
-    if(self.media.document && (self.media.document.isVoice || self.media.document.isSticker))
+    if(self.media.document && (self.media.document.isSticker))
         return NO;
     
     if([self isKindOfClass:[TL_localMessageService class]])
@@ -450,13 +450,22 @@ DYNAMIC_PROPERTY(DDialog);
         
         canEdit = canEdit && self.via_bot_id == 0;
         
-        return canEdit && self.date + edit_time_limit() > [[MTNetwork instance] getTime];
+        return canEdit && (self.date + edit_time_limit() > [[MTNetwork instance] getTime] || self.to_id.user_id == [UsersManager currentUserId]);
     }
     
     return NO;
 }
 
 -(void)setReplyMessage:(TL_localMessage *)replyMessage {
+    
+    if(_replyMessage && !replyMessage) {
+        int bp = 0;
+    }
+    
+    
+    if(replyMessage) {
+        int bp = 0;
+    }
     
     if(self.n_id == 41345) {
         int bp = 0;

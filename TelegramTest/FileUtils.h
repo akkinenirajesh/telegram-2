@@ -23,6 +23,14 @@
 @interface FileUtils : NSObject
 
 
+typedef enum {
+    PasteBoardItemTypeVideo,
+    PasteBoardItemTypeDocument,
+    PasteBoardItemTypeImage,
+    PasteBoardItemTypeGif,
+    PasteBoardTypeLink
+} PasteBoardItemType;
+
 extern NSString *const TGImagePType;
 
 extern NSString *const TGImportCardPrefix;
@@ -113,4 +121,8 @@ NSString *priorityString(NSString *, ...);
 
 + (TGAudioWaveform *)waveformForPath:(NSString *)path;
 + (int)convertBinaryStringToDecimalNumber:(NSString *)binaryString;
+
+BOOL isEnterAccess(NSEvent *theEvent);
+BOOL isEnterEvent(NSEvent *theEvent);
+
 @end

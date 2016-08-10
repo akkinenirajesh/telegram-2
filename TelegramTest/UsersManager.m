@@ -14,6 +14,7 @@
 #import <AddressBook/AddressBook.h>
 #import "TLUserCategory.h"
 #import "FullUsersManager.h"
+#import "TGSearchSignalKit.h"
 @interface UsersManager ()
 @property (nonatomic, strong) TGTimer *lastSeenUpdater;
 @property (nonatomic, strong) RPCRequest *lastSeenRequest;
@@ -26,6 +27,8 @@
     if(self = [super initWithQueue:queue]) {
         [Notification addObserver:self selector:@selector(protocolUpdated:) name:PROTOCOL_UPDATED];
         [Notification addObserver:self selector:@selector(logoutNotification) name:LOGOUT_EVENT];
+        
+        
     }
     return self;
 }
@@ -69,7 +72,9 @@
     
     self.lastSeenRequest = [RPCRequest sendRequest:[TLAPI_users_getUsers createWithN_id:needUsersUpdate] successHandler:^(RPCRequest *request, NSMutableArray *response) {
         
-        [self add:response withCustomKey:@"n_id" update:YES];
+        [[self add:response autoStart:NO] startWithNext:^(id next) {
+            [[Storage manager] insertUsers:next];
+        }];
         
     } errorHandler:nil];
 }
@@ -132,7 +137,14 @@
     NSArray *fullName;
     
     
-    NSArray *filtered = uids.count > 0 ? [[[self sharedManager] all] filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"self.n_id IN %@ and self.isBotInlinePlaceholder == 0",uids]] : [[[self sharedManager] all] filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"self.isBotInlinePlaceholder == 0",uids]];
+    NSArray *filtered;
+    
+    UsersManager *manager = [self sharedManager];
+    
+    if( uids.count > 0)
+       filtered = [manager.all filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:acceptNonameUsers ? @"self.n_id IN %@ and self.isBotInlinePlaceholder == 0" : @"self.n_id IN %@ and self.isBotInlinePlaceholder == 0 and self.username.length > 0",uids]];
+        else
+           filtered = [manager.all filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:acceptNonameUsers ? @"self.isBotInlinePlaceholder == 0" : @"self.isBotInlinePlaceholder == 0 and self.username.length > 0",uids]];
     
     if(userName.length > 0) {
         userNames = [filtered filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"self.username BEGINSWITH[c] %@",userName]];
@@ -177,19 +189,16 @@
     return [self findUsersByMention:userName withUids:uids acceptContextBots:NO acceptNonameUsers:YES];
 }
 
-- (void)addFromDB:(NSArray *)array {
-    [self add:array withCustomKey:@"n_id" update:NO];
-}
 
-- (void)add:(NSArray *)all withCustomKey:(NSString *)key {
-    [self add:all withCustomKey:key update:YES];
-}
 
-- (void)add:(NSArray *)all withCustomKey:(NSString *)key update:(BOOL)isNeedUpdateDB {
-
-    [self.queue dispatchOnQueue:^{
+- (SSignal *)add:(NSArray *)all withCustomKey:(NSString *)key autoStart:(BOOL)autoStart {
+    
+    SSignal *signal = [[[SSignal alloc] initWithGenerator:^id<SDisposable>(SSubscriber * subscriber) {
+        
+        __block BOOL dispose = NO;
         
         NSMutableArray *usersToUpdate = [NSMutableArray array];
+        
         
         for (TLUser *newUser in all) {
             TLUser *currentUser = [keys objectForKey:[newUser valueForKey:key]];
@@ -199,8 +208,6 @@
                 newUser.first_name =  NSLocalizedString(@"User.Deleted", nil);
             }
             
-            
-           
             
             BOOL needUpdateUserInDB = NO;
             if(currentUser) {
@@ -225,16 +232,19 @@
                         if(!newUser.isMin) {
                             currentUser.first_name = newUser.first_name;
                             currentUser.last_name = newUser.last_name;
-                        
-                        
+                            
+                            
                             currentUser.username = newUser.username;
                             currentUser.phone = newUser.phone;
+                            
                         }
-                       
+                        
                         
                         isNeedRebuildNames = YES;
                         
                         needUpdateUserInDB = YES;
+                        
+                       
                     }
                 }
                 
@@ -242,7 +252,7 @@
                     currentUser.photo = newUser.photo;
                     
                     PreviewObject *previewObject = [[PreviewObject alloc] initWithMsdId:currentUser.photo.photo_id media:[TL_photoSize createWithType:@"x" location:currentUser.photo.photo_big w:640 h:640 size:0] peer_id:currentUser.n_id];
-
+                    
                     [Notification perform:USER_UPDATE_PHOTO data:@{KEY_USER: currentUser, KEY_PREVIEW_OBJECT:previewObject}];
                     needUpdateUserInDB = YES;
                 }
@@ -284,11 +294,8 @@
                 [newUser rebuildNames];
                 [newUser rebuildType];
                 
-                 currentUser = newUser;
-                if(isNeedUpdateDB) {
-                    currentUser.lastSeenUpdate = [[MTNetwork instance] getTime];
-                }
-
+                currentUser = newUser;
+                
                 
                 needUpdateUserInDB = YES;
             }
@@ -297,22 +304,43 @@
                 _userSelf = currentUser;
             
             BOOL result = [self setUserStatus:newUser.status forUser:currentUser autoSave:NO];
+           
             if(!needUpdateUserInDB && result) {
                 needUpdateUserInDB = YES;
             }
             
-            if(needUpdateUserInDB && isNeedUpdateDB) {
+            
+            if(needUpdateUserInDB) {
                 [usersToUpdate addObject:newUser];
             }
+            
+            if(dispose)
+                break;
         }
         
         
-        
         if(usersToUpdate.count)
-            [[Storage manager] insertUsers:usersToUpdate completeHandler:nil];
-    }];
+            [subscriber putNext:usersToUpdate];
+        
+        
+        return [[SBlockDisposable alloc] initWithBlock:^
+                {
+                    dispose = YES;
+                }];
+    }] startOn:[ASQueue globalQueue]];
     
+    
+    if(autoStart)
+        [signal startWithNext:^(id next) {
+            
+            
+        }];
+    
+    
+    return signal;
+
 }
+
 
 - (BOOL)setUserStatus:(TLUserStatus *)status forUser:(TLUser *)currentUser autoSave:(BOOL)autoSave {
     
@@ -331,7 +359,7 @@
         if(saveOnlyTime) {
             [[Storage manager] updateUsersStatus:@[currentUser]];
         } else {
-             [[Storage manager] insertUser:currentUser completeHandler:nil];
+             [[Storage manager] insertUser:currentUser];
         }
     }
     
@@ -388,9 +416,9 @@
         
         [self.userSelf rebuildNames];
         
-        [[Storage manager] insertUser:self.userSelf completeHandler:nil];
+        [[Storage manager] insertUser:self.userSelf];
         
-        [[ASQueue mainQueue] dispatchOnQueue:^{
+        [ASQueue dispatchOnMainQueue:^{
             completeHandler(self.userSelf);
         }];
         
@@ -445,7 +473,7 @@
                 [self add:@[response]];
             }
             
-            [[Storage manager] insertUser:self.userSelf completeHandler:nil];
+            [[Storage manager] insertUser:self.userSelf];
             
             completeHandler(self.userSelf);
             [Notification perform:USER_UPDATE_NAME data:@{KEY_USER:self.userSelf}];

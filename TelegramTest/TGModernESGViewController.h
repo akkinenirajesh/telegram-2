@@ -32,6 +32,7 @@
 
 +(NSDictionary *)allStickers;
 +(NSArray *)allSets;
+
 +(TL_stickerSet *)setWithId:(long)n_id;
 +(NSArray *)stickersWithId:(long)n_id;
 
@@ -39,5 +40,7 @@
 
 
 +(void)reloadStickers;
+
++(SSignal *)stickersSignal:(TLStickerSet *)stickerSet;
 
 @end

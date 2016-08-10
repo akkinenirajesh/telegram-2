@@ -9,32 +9,46 @@
 #import "TGInputMessageTemplate.h"
 #import "SpacemanBlocks.h"
 #import "NSString+FindURLs.h"
+#import "TGInputTextTag.h"
 
 @implementation TGInputMessageTemplate
 {
     SMDelayedBlockHandle _futureblock;
+    NSMutableAttributedString *_textContainer;
 }
 
 static NSString *kYapTemplateCollection = @"kYapTemplateCollection";
-
+static ASQueue *queue;
+static NSMutableDictionary *list;
 -(instancetype)initWithCoder:(NSCoder *)aDecoder {
     if(self = [super init]) {
-        _text = [aDecoder decodeObjectForKey:@"text"];
-        _originalText = [aDecoder decodeObjectForKey:@"originalText"];
         _postId = [aDecoder decodeInt32ForKey:@"postId"];
         _type = [aDecoder  decodeInt32ForKey:@"type"];
         _peer_id = [aDecoder decodeInt32ForKey:@"peerId"];
-        _autoSave = [aDecoder decodeBoolForKey:@"autoSave"];
         _editMessage = [aDecoder decodeObjectForKey:@"editMessage"];
         _replyMessage = [aDecoder decodeObjectForKey:@"replyMessage"];
         _disabledWebpage = [aDecoder decodeObjectForKey:@"disabledWebpage"];
+        _textContainer = [aDecoder decodeObjectForKey:@"attributedString"];
+        
+        _autoSave = YES;
     }
     return self;
 }
 
+-(NSAttributedString *)attributedString {
+    return _textContainer ? _textContainer : [[NSAttributedString alloc] init];
+}
+
++(void)initialize {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        queue = [[ASQueue alloc] initWithName:"inputSaveQueue"];
+        list = [NSMutableDictionary dictionary];
+    });
+}
+
 -(void)encodeWithCoder:(NSCoder *)aCoder {
-    [aCoder encodeObject:_text forKey:@"text"];
-    [aCoder encodeObject:_originalText forKey:@"originalText"];
+    [aCoder encodeObject:self.attributedString forKey:@"attributedString"];
     [aCoder encodeInt32:_type forKey:@"type"];
     [aCoder encodeInt32:_postId forKey:@"postId"];
     [aCoder encodeInt32:_peer_id forKey:@"peerId"];
@@ -45,27 +59,25 @@ static NSString *kYapTemplateCollection = @"kYapTemplateCollection";
         [aCoder encodeObject:_replyMessage forKey:@"replyMessage"];
     if(_disabledWebpage)
         [aCoder encodeObject:_disabledWebpage forKey:@"disabledWebpage"];
-    
 }
 
 -(void)setDisabledWebpage:(NSString *)disabledWebpage {
     _disabledWebpage = disabledWebpage;
-    
 }
 
--(void)setText:(NSString *)text {
-    _text = text;
-    if(_text.length == 0)
+
+-(void)setAttributedString:(NSAttributedString *)attributedString {
+    _textContainer = [attributedString mutableCopy];
+    if(_textContainer.length == 0)
         _disabledWebpage = nil;
 }
 
--(id)initWithType:(TGInputMessageTemplateType)type text:(NSString *)text peer_id:(int)peer_id {
+-(id)initWithType:(TGInputMessageTemplateType)type text:(NSAttributedString *)attributedString peer_id:(int)peer_id {
     if(self = [super init]) {
-        _text = text;
+        _textContainer = [attributedString mutableCopy];
         _type = type;
         _peer_id = peer_id;
         _autoSave = YES;
-        _originalText = text;
         
        
     }
@@ -73,8 +85,8 @@ static NSString *kYapTemplateCollection = @"kYapTemplateCollection";
     return self;
 }
 
--(id)initWithType:(TGInputMessageTemplateType)type text:(NSString *)text peer_id:(int)peer_id postId:(int)postId {
-    if(self = [self initWithType:type text:text peer_id:peer_id]) {
+-(id)initWithType:(TGInputMessageTemplateType)type text:(NSAttributedString *)attributedString peer_id:(int)peer_id postId:(int)postId {
+    if(self = [self initWithType:type text:attributedString peer_id:peer_id]) {
         _postId = postId;
     }
     
@@ -89,7 +101,11 @@ static NSString *kYapTemplateCollection = @"kYapTemplateCollection";
 
 -(void)fillEntities:(NSArray *)entities {
     __block int rightOffset = 0;
-    __block int startOffset = (int)_text.length;
+    __block int startOffset = (int)_textContainer.length;
+    
+    _textContainer = [[NSMutableAttributedString alloc] initWithString:_textContainer.string];
+    
+    __block int uniqueId = 0;
     
     [entities enumerateObjectsUsingBlock:^(TLMessageEntity *obj, NSUInteger idx, BOOL * _Nonnull stop) {
         
@@ -97,22 +113,16 @@ static NSString *kYapTemplateCollection = @"kYapTemplateCollection";
         
         if([obj isKindOfClass:[TL_messageEntityMentionName class]]) {
             
-            NSString *value = [_text substringWithRange:range];
-            NSString *userId = [NSString stringWithFormat:@"%d",obj.user_id];
-            
-            _text = [_text stringByReplacingOccurrencesOfString:value withString:[NSString stringWithFormat:@"@[%@|%@]",value,userId] options:0 range:range];
-            
-            rightOffset+=4+userId.length;
-            startOffset = MIN(startOffset,obj.offset);
+            [_textContainer addAttribute:TGMentionUidAttributeName value:[[TGInputTextTag alloc] initWithUniqueId:uniqueId left:true attachment:@(obj.user_id)] range:range];
             
         } else if([obj isKindOfClass:[TL_messageEntityPre class]]) {
-            NSString *value = [_text substringWithRange:range];
-            _text = [_text stringByReplacingOccurrencesOfString:value withString:[NSString stringWithFormat:@"```%@```",value] options:0 range:range];
+            NSString *value = [_textContainer.string substringWithRange:range];
+            [_textContainer replaceCharactersInRange:range withString:[NSString stringWithFormat:@"```%@```",value]];
             rightOffset+=6;
             startOffset = MIN(startOffset,obj.offset);
         } else if([obj isKindOfClass:[TL_messageEntityCode class]]) {
-            NSString *value = [_text substringWithRange:range];
-            _text = [_text stringByReplacingOccurrencesOfString:value withString:[NSString stringWithFormat:@"`%@`",value] options:0 range:range];
+            NSString *value = [_textContainer.string substringWithRange:range];
+            [_textContainer replaceCharactersInRange:range withString:[NSString stringWithFormat:@"`%@`",value]];
             rightOffset+=2;
             startOffset = MIN(startOffset,obj.offset);
         }
@@ -121,10 +131,17 @@ static NSString *kYapTemplateCollection = @"kYapTemplateCollection";
 
 -(NSString *)textWithEntities:(NSMutableArray *)entities {
     
-    NSString *message = [self.text copy];
+    NSString *message = [_textContainer.string copy];
     
-    message = [MessageSender parseCustomMentions:message entities:entities];
-    
+    [_textContainer enumerateAttribute:TGMentionUidAttributeName inRange:NSMakeRange(0, _textContainer.length) options:0 usingBlock:^(__unused id value, NSRange range, __unused BOOL *stop) {
+        if ([value isKindOfClass:[TGInputTextTag class]]) {
+            TLUser *user = [[UsersManager sharedManager] find:[((TGInputTextTag *)value).attachment intValue]];
+            if(user) {
+                [entities addObject:[TL_inputMessageEntityMentionName createWithOffset:(int)range.location length:(int)range.length input_user_id:user.inputUser]];
+            }
+        }
+    }];
+
     message = [MessageSender parseEntities:message entities:entities backstrips:@"```" startIndex:0];
     
     message = [MessageSender parseEntities:message entities:entities backstrips:@"`" startIndex:0];
@@ -133,6 +150,7 @@ static NSString *kYapTemplateCollection = @"kYapTemplateCollection";
 }
 
 -(void)saveTemplateInCloudIfNeeded {
+    
     NSMutableArray *entities = [NSMutableArray array];
     
     NSString *text = [self textWithEntities:entities];
@@ -151,7 +169,7 @@ static NSString *kYapTemplateCollection = @"kYapTemplateCollection";
     
     TL_conversation *convesation = [[DialogsManager sharedManager] find:_peer_id];
     
-    if(convesation.type == DialogTypeSecretChat)
+    if(convesation.type == DialogTypeSecretChat || _type == TGInputMessageTemplateTypeEditMessage)
         return;
     
     TLDraftMessage *draftMessage = text.length == 0 && flags == 0 ? [TL_draftMessageEmpty create] : [TL_draftMessage createWithFlags:0 reply_to_msg_id:_replyMessage.n_id message:text entities:entities date:[[MTNetwork instance] getTime]];
@@ -197,8 +215,12 @@ static NSString *kYapTemplateCollection = @"kYapTemplateCollection";
 }
 
 -(void)performNotification {
+    [self performNotification:NO];
+}
+
+-(void)performNotification:(BOOL)swap {
     _applyNextNotification = YES;
-    [Notification perform:UPDATE_MESSAGE_TEMPLATE data:@{KEY_TEMPLATE:self,KEY_PEER_ID:@(_peer_id)}];
+    [Notification perform:UPDATE_MESSAGE_TEMPLATE data:@{KEY_TEMPLATE:self,KEY_PEER_ID:@(_peer_id),KEY_DATA:@(swap)}];
 }
 
 -(void)updateTemplateWithDraft:(TLDraftMessage *)draft {
@@ -246,14 +268,12 @@ static NSString *kYapTemplateCollection = @"kYapTemplateCollection";
         }
     };
     
-    _text = draft.message;
+    _textContainer = [[NSMutableAttributedString alloc] initWithString:draft.message ? draft.message : @""];
     [self fillEntities:draft.entities];
     
     if(draft.isNo_webpage) {
-        _disabledWebpage = [_text webpageLink];
+        _disabledWebpage = [_textContainer.string webpageLink];
     }
-    
-    
     
     if(draft.reply_to_msg_id != 0) {
         
@@ -301,7 +321,7 @@ static NSString *kYapTemplateCollection = @"kYapTemplateCollection";
                     } errorHandler:^(id request, RpcError *error) {
                         
                         
-                    } timeout:0 queue:[ASQueue globalQueue].nativeQueue];
+                    } timeout:0 queue:[ASQueue globalQueue]._dispatch_queue];
                 }
                 
             } forIds:@[@(draft.reply_to_msg_id)] random:NO sync:NO  queue:[ASQueue globalQueue] isChannel:conversation.isChannel];
@@ -314,25 +334,59 @@ static NSString *kYapTemplateCollection = @"kYapTemplateCollection";
     }
 }
 
--(void)updateTextAndSave:(NSString *)newText {
+-(void)updateTextAndSave:(NSAttributedString *)newText {
     
-    BOOL save = ![_text isEqualToString:newText];
+    BOOL save = ![_textContainer isEqualToAttributedString:newText];
     
 
-    _text = [newText trim];
+
+    _textContainer = [newText mutableCopy];
     
     if(_autoSave && save) {
         cancel_delayed_block(_futureblock);
         
-        _futureblock = perform_block_after_delay(0.5, ^{
+       // _futureblock = perform_block_after_delay(0.5, ^{
             [self saveForce];
-        });
+       // });
     }
     
 }
 
+
+-(SSignal *)updateSignalText:(NSAttributedString *)newText {
+    
+    
+    return [[SSignal alloc] initWithGenerator:^id<SDisposable>(SSubscriber *subscriber) {
+        
+        BOOL save = ![_textContainer isEqualToAttributedString:newText];
+        BOOL changedWebpage = self.webpage != newText.string.webpageLink && ![self.webpage isEqualToString:[newText.string webpageLink]];
+        
+        _textContainer = [newText mutableCopy];
+        
+        if(changedWebpage && _disabledWebpage) {
+            _disabledWebpage = nil;
+        }
+        
+        if(_autoSave && save) {
+            [self saveForce];
+        }
+        
+        [subscriber putNext:@[@(save),@(changedWebpage)]];
+        [subscriber putCompletion];
+        
+        return nil;
+        
+    }];
+    
+    
+}
+
 -(BOOL)noWebpage {
-    return [_disabledWebpage isEqualToString:[self.text webpageLink]];
+    return [_disabledWebpage isEqualToString:[self.attributedString.string webpageLink]];
+}
+
+-(NSString *)webpage {
+    return self.attributedString.string.webpageLink;
 }
 
 -(void)setReplyMessage:(TL_localMessage *)replyMessage save:(BOOL)save {
@@ -345,14 +399,13 @@ static NSString *kYapTemplateCollection = @"kYapTemplateCollection";
 
 -(void)saveForce {
     
-     cancel_delayed_block(_futureblock);
     
+     NSUserDefaults *def = [NSUserDefaults standardUserDefaults];
     
-    [[Storage yap] readWriteWithBlock:^(YapDatabaseReadWriteTransaction * _Nonnull transaction) {
-        
-        [transaction setObject:self forKey:self.key inCollection:kYapTemplateCollection];
-        
-    }];
+     [def setObject:[NSKeyedArchiver archivedDataWithRootObject:self] forKey:self.key];
+    
+     [def synchronize];
+    
 }
 
 +(TGInputMessageTemplate *)templateWithType:(TGInputMessageTemplateType)type ofPeerId:(int)peer_id {
@@ -360,26 +413,40 @@ static NSString *kYapTemplateCollection = @"kYapTemplateCollection";
     
     __block BOOL n = NO;
     
-    [[Storage yap] readWriteWithBlock:^(YapDatabaseReadWriteTransaction * _Nonnull transaction) {
-        
-        template = [transaction objectForKey:[NSString stringWithFormat:@"%d_%d",peer_id,type] inCollection:kYapTemplateCollection];
-        
-        
-        if(!template) {
-            template = [[TGInputMessageTemplate alloc] initWithType:TGInputMessageTemplateTypeSimpleText text:@"" peer_id:peer_id];
-            n = YES;
-            
-            [transaction setObject:template forKey:template.key inCollection:kYapTemplateCollection];
-        }
-        
-    }];
     
+    NSUserDefaults *def = [NSUserDefaults standardUserDefaults];
+    
+    NSString *key = [NSString stringWithFormat:@"%d_%d",peer_id,type];
+    
+    
+    
+    template = list[key];
+    
+    if(!template)
+    {
+        template = [NSKeyedUnarchiver unarchiveObjectWithData:[def objectForKey:key]];
+        
+        if(template)
+            list[key] = template;
+    }
+    
+    if(!template) {
+        template = [[TGInputMessageTemplate alloc] initWithType:TGInputMessageTemplateTypeSimpleText text:[[NSAttributedString alloc] init] peer_id:peer_id];
+        n = YES;
+        
+        list[key] = template;
+        
+        [def setObject:[NSKeyedArchiver archivedDataWithRootObject:template] forKey:template.key];
+        
+        [def synchronize];
+    }
+
     
     if(n) {
         
         TL_conversation *conversation = [[DialogsManager sharedManager] find:peer_id];
         
-        if([conversation.draft isKindOfClass:[TL_draftMessage class]] && ![conversation.draft.message isEqualToString:template.text]) {
+        if([conversation.draft isKindOfClass:[TL_draftMessage class]] && ![conversation.draft.message isEqualToString:template.attributedString.string]) {
             [template fillDraft:conversation.draft conversation:conversation save:NO];
         }
     }
@@ -396,7 +463,7 @@ static NSString *kYapTemplateCollection = @"kYapTemplateCollection";
 
 -(id)copy {
     
-    TGInputMessageTemplate *template = [[[self class] alloc] initWithType:self.type text:self.text peer_id:self.peer_id postId:self.postId];;
+    TGInputMessageTemplate *template = [[[self class] alloc] initWithType:self.type text:self.attributedString peer_id:self.peer_id postId:self.postId];;
     [template setReplyMessage:_replyMessage save:NO];
     [template setEditMessage:_editMessage];
     [template setDisabledWebpage:_disabledWebpage];

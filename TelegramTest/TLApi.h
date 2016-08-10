@@ -2,7 +2,7 @@
 //  TLApi.h
 //  Telegram
 //
-//  Auto created by Mikhail Filimonov on 03.06.16.
+//  Auto created by Mikhail Filimonov on 27.07.16.
 //  Copyright (c) 2013 Telegram for OS X. All rights reserved.
 //
 
@@ -317,13 +317,14 @@
 @property int flags;
 @property (nonatomic,assign,readonly) BOOL isSilent;
 @property (nonatomic,assign,readonly) BOOL isBackground;
+@property (nonatomic,assign,readonly) BOOL isClear_draft;
 @property (nonatomic, strong) TLInputPeer* peer;
 @property int reply_to_msg_id;
 @property (nonatomic, strong) TLInputMedia* media;
 @property long random_id;
 @property (nonatomic, strong) TLReplyMarkup* reply_markup;
 
-+(TLAPI_messages_sendMedia*)createWithFlags:(int)flags   peer:(TLInputPeer*)peer reply_to_msg_id:(int)reply_to_msg_id media:(TLInputMedia*)media random_id:(long)random_id reply_markup:(TLReplyMarkup*)reply_markup;
++(TLAPI_messages_sendMedia*)createWithFlags:(int)flags    peer:(TLInputPeer*)peer reply_to_msg_id:(int)reply_to_msg_id media:(TLInputMedia*)media random_id:(long)random_id reply_markup:(TLReplyMarkup*)reply_markup;
 @end
 
 @interface TLAPI_messages_forwardMessages : TLApiObject
@@ -789,9 +790,9 @@
 
 @interface TLAPI_messages_installStickerSet : TLApiObject
 @property (nonatomic, strong) TLInputStickerSet* stickerset;
-@property Boolean disabled;
+@property Boolean archived;
 
-+(TLAPI_messages_installStickerSet*)createWithStickerset:(TLInputStickerSet*)stickerset disabled:(Boolean)disabled;
++(TLAPI_messages_installStickerSet*)createWithStickerset:(TLInputStickerSet*)stickerset archived:(Boolean)archived;
 @end
 
 @interface TLAPI_messages_uninstallStickerSet : TLApiObject
@@ -1087,13 +1088,14 @@
 @property int flags;
 @property (nonatomic,assign,readonly) BOOL isSilent;
 @property (nonatomic,assign,readonly) BOOL isBackground;
+@property (nonatomic,assign,readonly) BOOL isClear_draft;
 @property (nonatomic, strong) TLInputPeer* peer;
 @property int reply_to_msg_id;
 @property long random_id;
 @property long query_id;
 @property (nonatomic, strong) NSString* n_id;
 
-+(TLAPI_messages_sendInlineBotResult*)createWithFlags:(int)flags   peer:(TLInputPeer*)peer reply_to_msg_id:(int)reply_to_msg_id random_id:(long)random_id query_id:(long)query_id n_id:(NSString*)n_id;
++(TLAPI_messages_sendInlineBotResult*)createWithFlags:(int)flags    peer:(TLInputPeer*)peer reply_to_msg_id:(int)reply_to_msg_id random_id:(long)random_id query_id:(long)query_id n_id:(NSString*)n_id;
 @end
 
 @interface TLAPI_channels_toggleInvites : TLApiObject
@@ -1183,8 +1185,9 @@
 @property (nonatomic,assign,readonly) BOOL isAlert;
 @property long query_id;
 @property (nonatomic, strong) NSString* message;
+@property (nonatomic, strong) NSString* url;
 
-+(TLAPI_messages_setBotCallbackAnswer*)createWithFlags:(int)flags  query_id:(long)query_id message:(NSString*)message;
++(TLAPI_messages_setBotCallbackAnswer*)createWithFlags:(int)flags  query_id:(long)query_id message:(NSString*)message url:(NSString*)url;
 @end
 
 @interface TLAPI_contacts_getTopPeers : TLApiObject
@@ -1229,5 +1232,65 @@
 
 
 +(TLAPI_messages_getAllDrafts*)create;
+@end
+
+@interface TLAPI_messages_getFeaturedStickers : TLApiObject
+@property int n_hash;
+
++(TLAPI_messages_getFeaturedStickers*)createWithN_hash:(int)n_hash;
+@end
+
+@interface TLAPI_messages_readFeaturedStickers : TLApiObject
+
+
++(TLAPI_messages_readFeaturedStickers*)create;
+@end
+
+@interface TLAPI_messages_getRecentStickers : TLApiObject
+@property int n_hash;
+
++(TLAPI_messages_getRecentStickers*)createWithN_hash:(int)n_hash;
+@end
+
+@interface TLAPI_messages_saveRecentSticker : TLApiObject
+@property (nonatomic, strong) TLInputDocument* n_id;
+@property Boolean unsave;
+
++(TLAPI_messages_saveRecentSticker*)createWithN_id:(TLInputDocument*)n_id unsave:(Boolean)unsave;
+@end
+
+@interface TLAPI_messages_clearRecentStickers : TLApiObject
+
+
++(TLAPI_messages_clearRecentStickers*)create;
+@end
+
+@interface TLAPI_messages_getUnusedStickers : TLApiObject
+@property int limit;
+
++(TLAPI_messages_getUnusedStickers*)createWithLimit:(int)limit;
+@end
+
+@interface TLAPI_messages_getArchivedStickers : TLApiObject
+@property long offset_id;
+@property int limit;
+
++(TLAPI_messages_getArchivedStickers*)createWithOffset_id:(long)offset_id limit:(int)limit;
+@end
+
+@interface TLAPI_account_sendConfirmPhoneCode : TLApiObject
+@property int flags;
+@property (nonatomic,assign,readonly) BOOL isAllow_flashcall;
+@property (nonatomic, strong) NSString* n_hash;
+@property Boolean current_number;
+
++(TLAPI_account_sendConfirmPhoneCode*)createWithFlags:(int)flags  n_hash:(NSString*)n_hash current_number:(Boolean)current_number;
+@end
+
+@interface TLAPI_account_confirmPhone : TLApiObject
+@property (nonatomic, strong) NSString* phone_code_hash;
+@property (nonatomic, strong) NSString* phone_code;
+
++(TLAPI_account_confirmPhone*)createWithPhone_code_hash:(NSString*)phone_code_hash phone_code:(NSString*)phone_code;
 @end
 

@@ -9,7 +9,6 @@
 #import "TMMediaController.h"
 #import "FileUtils.h"
 #import "TLFileLocation+Extensions.h"
-#import "ImageCache.h"
 #import "TLPeer+Extensions.h"
 #import "TMPreviewDocumentItem.h"
 
@@ -879,7 +878,7 @@ static TMMediaController* currentController;
         [panel beginSheetModalForWindow:_panel completionHandler:^(NSInteger result){
             if (result == NSFileHandlingPanelOKButton) {
                 NSURL *file = [panel URL];
-                if ( [[NSFileManager defaultManager] isReadableFileAtPath:item.url.path] ) {
+                if ( [[NSFileManager defaultManager] isReadableFileAtPath:[item.url.path stringByDeletingLastPathComponent]] ) {
 //                    MTLog(@"file %@", file);
                     [[NSFileManager defaultManager] copyItemAtURL:item.url toURL:file error:nil];
                 }
@@ -896,7 +895,7 @@ static TMMediaController* currentController;
         
         NSString *filePath = [NSString stringWithFormat:@"file://localhost%@/%@", applicationSupportPath, self.currentItem.fileName];
         
-        if ( [[NSFileManager defaultManager] isReadableFileAtPath:self.currentItem.url.path] ) {
+        if ( [[NSFileManager defaultManager] isReadableFileAtPath:[self.currentItem.url.path stringByDeletingLastPathComponent]] ) {
             NSError *error;
             [[NSFileManager defaultManager] copyItemAtURL:self.currentItem.url toURL:[[NSURL alloc] initWithString:filePath] error:&error];
         }

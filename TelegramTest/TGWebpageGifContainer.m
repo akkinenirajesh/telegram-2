@@ -114,7 +114,6 @@
 
 
 
-
 -(void)updateDownloadState {
     
     weak();
@@ -129,7 +128,7 @@
             
             __strong TGWebpageGifContainer *strongSelf = weakSelf;
             
-            [[ASQueue mainQueue] dispatchOnQueue:^{
+            [ASQueue dispatchOnMainQueue:^{
                 
                 [strongSelf downloadProgressHandler:item];
                 

@@ -277,13 +277,15 @@
 
 -(void)checkAndMakeBotKeyboard:(MessageTableItem *)item {
     
+    
+    
     if([item.message.reply_markup isKindOfClass:[TL_replyInlineMarkup class]]) {
         
         if(!_keyboard) {
             _keyboard = [[TGBotCommandsKeyboard alloc] initWithFrame:NSZeroRect];
             [_keyboard setBackgroundColor:[NSColor clearColor]];
-            [_keyboard setButtonBorderColor:NSColorFromRGB(0x4ba3e2)];
-            [_keyboard setButtonColor:NSColorFromRGB(0x4ba3e2)];
+            [_keyboard setButtonBorderColor:BLUE_COLOR];
+            [_keyboard setButtonColor:BLUE_COLOR];
             [_keyboard setButtonTextColor:[NSColor whiteColor]];
             [self.contentContainerView addSubview:_keyboard];
         }
@@ -327,8 +329,6 @@
 
 -(void)checkAndMakeSenderItem:(MessageTableItem *)item {
     if(item.messageSender)  {
-        
-        [item.messageSender removeAllListeners];
     
         [item.messageSender addEventListener:self];
         if(item.messageSender.state == MessageStateWaitSend)

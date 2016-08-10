@@ -88,7 +88,6 @@
     self.blockedUsersViewController = [[BlockedUsersViewController alloc] initWithFrame:rect];
     
     self.generalSettingsViewController = [[GeneralSettingsViewController alloc] initWithFrame:rect];
-    self.settingsSecurityViewController = [[SettingsSecurityViewController alloc] initWithFrame:rect];
     
     self.aboutViewController = [[AboutViewController alloc] initWithFrame:rect];
     self.userNameViewController = [[UserNameViewController alloc] initWithFrame:rect];
@@ -344,7 +343,10 @@
         
         [appWindow().navigationController showMessagesViewController:dialog];
         
-        [appWindow().navigationController.messagesViewController setStringValueToTextField:[NSString stringWithFormat:@"%@\n%@",obj[@"url"],obj[@"text"]]];
+        TGInputMessageTemplate *template = dialog.inputTemplate;
+        [template updateTextAndSave:[[NSAttributedString alloc] initWithString:[NSString stringWithFormat:@"%@\n%@",obj[@"url"],obj[@"text"]]]];
+        
+        [template performNotification];
         
         [appWindow().navigationController.messagesViewController selectInputTextByText:obj[@"text"]];
         
@@ -356,9 +358,9 @@
         
         [appWindow().navigationController showMessagesViewController:dialog];
         
-        TGInputMessageTemplate *template = [[TGInputMessageTemplate templateWithType:TGInputMessageTemplateTypeSimpleText ofPeerId:dialog.peer_id] copy];
-        [template updateTextAndSave:text];
-        [Notification perform:UPDATE_MESSAGE_TEMPLATE data:@{KEY_TEMPLATE:template,KEY_PEER_ID:@(dialog.peer_id)}];
+        TGInputMessageTemplate *template = [TGInputMessageTemplate templateWithType:TGInputMessageTemplateTypeSimpleText ofPeerId:dialog.peer_id];
+        [template updateTextAndSave:[[NSAttributedString alloc] initWithString:text]];
+        [template performNotification];
                 
         [self hideModalView:YES animation:YES];
         
@@ -719,15 +721,7 @@
     [self.navigationViewController pushViewController:self.generalSettingsViewController animated:self.navigationViewController.currentController != [self noDialogsSelectedViewController]];
 }
 
-- (void)showSecuritySettings {
-    if(self.navigationViewController.currentController == self.settingsSecurityViewController)
-        return;
-    
-    [self hideModalView:YES animation:NO];
-    
-    
-    [self.navigationViewController pushViewController:self.settingsSecurityViewController animated:self.navigationViewController.currentController != [self noDialogsSelectedViewController]];
-}
+
 
 - (void)showAbout {
     if(self.navigationViewController.currentController == self.aboutViewController)

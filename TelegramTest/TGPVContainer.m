@@ -151,8 +151,12 @@
 
 -(void)mouseUp:(NSEvent *)theEvent {
     
-    if([self mouse:[self convertPoint:[theEvent locationInWindow] fromView:nil] inRect:_imageContainerView.frame])
+    NSPoint point = [self convertPoint:[theEvent locationInWindow] fromView:nil];
+    
+    if([self mouse:point inRect:_imageContainerView.frame])
         [TGPhotoViewer nextItem];
+    else if(point.x < 0)
+        [TGPhotoViewer prevItem];
     else
         [[TGPhotoViewer viewer] hide];
 }
@@ -421,7 +425,12 @@
 -(void)copy:(id)sender {
     NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
     [pasteboard clearContents];
-    [pasteboard writeObjects:[NSArray arrayWithObject:[NSURL fileURLWithPath:mediaFilePath(self.currentViewerItem.previewObject.media)]]];
+    
+    TL_localMessage *msg = self.currentViewerItem.previewObject.media;
+    
+    
+    [pasteboard writeObjects:@[[NSURL fileURLWithPath:mediaFilePath(msg)]]];
+
 }
 
 

@@ -59,6 +59,7 @@
     if(_state == TGModernCHStateLocal)
     {
         
+        
         [[Storage manager] dialogsWithOffset:_offset limit:_offset > 0 ? 1000 : [self.delegate conversationsLoadingLimit] completeHandler:^(NSArray *d) {
             
             
@@ -105,8 +106,6 @@
         const int limit = 50;
         
         [RPCRequest sendRequest:[TLAPI_messages_getDialogs createWithOffset_date:date offset_id:conversation.lastMessage.n_id offset_peer:inputPeer limit:limit] successHandler:^(id request, TL_messages_dialogs *response) {
-            
-            
             
             
             [SharedManager proccessGlobalResponse:response];
@@ -215,6 +214,7 @@
     _remoteOffset = 0;
     _isLoading = NO;
     _delegate = nil;
+    _state = TGModernCHStateLocal;
 }
 
 

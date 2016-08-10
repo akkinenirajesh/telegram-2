@@ -2,7 +2,7 @@
 //  MTProto.h
 //  Telegram
 //
-//  Auto created by Mikhail Filimonov on 03.06.16.
+//  Auto created by Mikhail Filimonov on 27.07.16.
 //  Copyright (c) 2013 Telegram for OS X. All rights reserved.
 //
 
@@ -453,6 +453,21 @@
 @interface TLDraftMessage : TLObject
 @end
 	
+@interface TLmessages_FeaturedStickers : TLObject
+@end
+	
+@interface TLmessages_RecentStickers : TLObject
+@end
+	
+@interface TLmessages_ArchivedStickers : TLObject
+@end
+	
+@interface TLmessages_StickerSetInstallResult : TLObject
+@end
+	
+@interface TLStickerSetCovered : TLObject
+@end
+	
 @interface TLAudio : TLObject
 @end
 	
@@ -723,6 +738,7 @@
 @property long secret;
 @property long n_id;
 @property long access_hash;
+@property int version;
 @end
 
 @interface TL_inputFileLocation : TLInputFileLocation<NSCoding>
@@ -732,7 +748,7 @@
 +(TL_inputEncryptedFileLocation*)createWithN_id:(long)n_id access_hash:(long)access_hash;
 @end
 @interface TL_inputDocumentFileLocation : TLInputFileLocation<NSCoding>
-+(TL_inputDocumentFileLocation*)createWithN_id:(long)n_id access_hash:(long)access_hash;
++(TL_inputDocumentFileLocation*)createWithN_id:(long)n_id access_hash:(long)access_hash version:(int)version;
 @end
 	
 @interface TLInputPhotoCrop()
@@ -918,7 +934,7 @@
 @property int flags;
 @property (nonatomic,assign,readonly) BOOL isCreator;
 @property (nonatomic,assign,readonly) BOOL isKicked;
-@property Boolean left;
+@property (nonatomic,assign,readonly) BOOL isLeft;
 @property (nonatomic,assign,readonly) BOOL isAdmins_enabled;
 @property (nonatomic,assign,readonly) BOOL isAdmin;
 @property (nonatomic,assign,readonly) BOOL isDeactivated;
@@ -959,7 +975,7 @@
 +(TL_channelForbidden*)createWithFlags:(int)flags   n_id:(int)n_id access_hash:(long)access_hash title:(NSString*)title;
 @end
 @interface TL_chat_old34 : TLChat<NSCoding>
-+(TL_chat_old34*)createWithN_id:(int)n_id title:(NSString*)title photo:(TLChatPhoto*)photo participants_count:(int)participants_count date:(int)date left:(Boolean)left version:(int)version;
++(TL_chat_old34*)createWithN_id:(int)n_id title:(NSString*)title photo:(TLChatPhoto*)photo participants_count:(int)participants_count date:(int)date version:(int)version;
 @end
 @interface TL_chatForbidden_old34 : TLChat<NSCoding>
 +(TL_chatForbidden_old34*)createWithN_id:(int)n_id title:(NSString*)title date:(int)date;
@@ -1820,6 +1836,12 @@
 @interface TL_updateDraftMessage : TLUpdate<NSCoding>
 +(TL_updateDraftMessage*)createWithPeer:(TLPeer*)peer draft:(TLDraftMessage*)draft;
 @end
+@interface TL_updateReadFeaturedStickers : TLUpdate<NSCoding>
++(TL_updateReadFeaturedStickers*)create;
+@end
+@interface TL_updateRecentStickers : TLUpdate<NSCoding>
++(TL_updateRecentStickers*)create;
+@end
 	
 @interface TLupdates_State()
 @property int pts;
@@ -1971,11 +1993,15 @@
 @property int saved_gifs_limit;
 @property int edit_time_limit;
 @property int rating_e_decay;
+@property int stickers_recent_limit;
 @property (nonatomic, strong) NSMutableArray* disabled_features;
 @end
 
 @interface TL_config : TLConfig<NSCoding>
-+(TL_config*)createWithDate:(int)date expires:(int)expires test_mode:(Boolean)test_mode this_dc:(int)this_dc dc_options:(NSMutableArray*)dc_options chat_size_max:(int)chat_size_max megagroup_size_max:(int)megagroup_size_max forwarded_count_max:(int)forwarded_count_max online_update_period_ms:(int)online_update_period_ms offline_blur_timeout_ms:(int)offline_blur_timeout_ms offline_idle_timeout_ms:(int)offline_idle_timeout_ms online_cloud_timeout_ms:(int)online_cloud_timeout_ms notify_cloud_delay_ms:(int)notify_cloud_delay_ms notify_default_delay_ms:(int)notify_default_delay_ms chat_big_size:(int)chat_big_size push_chat_period_ms:(int)push_chat_period_ms push_chat_limit:(int)push_chat_limit saved_gifs_limit:(int)saved_gifs_limit edit_time_limit:(int)edit_time_limit rating_e_decay:(int)rating_e_decay disabled_features:(NSMutableArray*)disabled_features;
++(TL_config*)createWithDate:(int)date expires:(int)expires test_mode:(Boolean)test_mode this_dc:(int)this_dc dc_options:(NSMutableArray*)dc_options chat_size_max:(int)chat_size_max megagroup_size_max:(int)megagroup_size_max forwarded_count_max:(int)forwarded_count_max online_update_period_ms:(int)online_update_period_ms offline_blur_timeout_ms:(int)offline_blur_timeout_ms offline_idle_timeout_ms:(int)offline_idle_timeout_ms online_cloud_timeout_ms:(int)online_cloud_timeout_ms notify_cloud_delay_ms:(int)notify_cloud_delay_ms notify_default_delay_ms:(int)notify_default_delay_ms chat_big_size:(int)chat_big_size push_chat_period_ms:(int)push_chat_period_ms push_chat_limit:(int)push_chat_limit saved_gifs_limit:(int)saved_gifs_limit edit_time_limit:(int)edit_time_limit rating_e_decay:(int)rating_e_decay stickers_recent_limit:(int)stickers_recent_limit disabled_features:(NSMutableArray*)disabled_features;
+@end
+@interface TL_config_old53 : TLConfig<NSCoding>
++(TL_config_old53*)createWithDate:(int)date expires:(int)expires test_mode:(Boolean)test_mode this_dc:(int)this_dc dc_options:(NSMutableArray*)dc_options chat_size_max:(int)chat_size_max megagroup_size_max:(int)megagroup_size_max forwarded_count_max:(int)forwarded_count_max online_update_period_ms:(int)online_update_period_ms offline_blur_timeout_ms:(int)offline_blur_timeout_ms offline_idle_timeout_ms:(int)offline_idle_timeout_ms online_cloud_timeout_ms:(int)online_cloud_timeout_ms notify_cloud_delay_ms:(int)notify_cloud_delay_ms notify_default_delay_ms:(int)notify_default_delay_ms chat_big_size:(int)chat_big_size push_chat_period_ms:(int)push_chat_period_ms push_chat_limit:(int)push_chat_limit saved_gifs_limit:(int)saved_gifs_limit edit_time_limit:(int)edit_time_limit rating_e_decay:(int)rating_e_decay disabled_features:(NSMutableArray*)disabled_features;
 @end
 	
 @interface TLNearestDc()
@@ -2143,6 +2169,7 @@
 @property int size;
 @property (nonatomic, strong) TLPhotoSize* thumb;
 @property int dc_id;
+@property int version;
 @property (nonatomic, strong) NSMutableArray* attributes;
 @property (nonatomic, strong) NSString* external_url;
 @property (nonatomic, strong) NSString* search_q;
@@ -2155,13 +2182,16 @@
 +(TL_documentEmpty*)createWithN_id:(long)n_id;
 @end
 @interface TL_document : TLDocument<NSCoding>
-+(TL_document*)createWithN_id:(long)n_id access_hash:(long)access_hash date:(int)date mime_type:(NSString*)mime_type size:(int)size thumb:(TLPhotoSize*)thumb dc_id:(int)dc_id attributes:(NSMutableArray*)attributes;
++(TL_document*)createWithN_id:(long)n_id access_hash:(long)access_hash date:(int)date mime_type:(NSString*)mime_type size:(int)size thumb:(TLPhotoSize*)thumb dc_id:(int)dc_id version:(int)version attributes:(NSMutableArray*)attributes;
 @end
 @interface TL_contextBotSender : TLDocument<NSCoding>
 +(TL_contextBotSender*)createWithN_id:(long)n_id date:(int)date mime_type:(NSString*)mime_type thumb:(TLPhotoSize*)thumb external_url:(NSString*)external_url search_q:(NSString*)search_q perform_date:(int)perform_date external_webpage:(TLWebPage*)external_webpage attributes:(NSMutableArray*)attributes;
 @end
 @interface TL_compressDocument : TLDocument<NSCoding>
 +(TL_compressDocument*)createWithN_id:(long)n_id access_hash:(long)access_hash date:(int)date mime_type:(NSString*)mime_type size:(int)size thumb:(TLPhotoSize*)thumb dc_id:(int)dc_id attributes:(NSMutableArray*)attributes compressor:(NSData*)compressor;
+@end
+@interface TL_document_old53 : TLDocument<NSCoding>
++(TL_document_old53*)createWithN_id:(long)n_id access_hash:(long)access_hash date:(int)date mime_type:(NSString*)mime_type size:(int)size thumb:(TLPhotoSize*)thumb dc_id:(int)dc_id attributes:(NSMutableArray*)attributes;
 @end
 	
 @interface TLhelp_Support()
@@ -2563,13 +2593,16 @@
 @property (nonatomic,assign,readonly) BOOL isPublic;
 @property (nonatomic,assign,readonly) BOOL isMegagroup;
 @property (nonatomic, strong) NSString* title;
+@property (nonatomic, strong) TLChatPhoto* photo;
+@property int participants_count;
+@property (nonatomic, strong) NSMutableArray* participants;
 @end
 
 @interface TL_chatInviteAlready : TLChatInvite<NSCoding>
 +(TL_chatInviteAlready*)createWithChat:(TLChat*)chat;
 @end
 @interface TL_chatInvite : TLChatInvite<NSCoding>
-+(TL_chatInvite*)createWithFlags:(int)flags     title:(NSString*)title;
++(TL_chatInvite*)createWithFlags:(int)flags     title:(NSString*)title photo:(TLChatPhoto*)photo participants_count:(int)participants_count participants:(NSMutableArray*)participants;
 @end
 	
 @interface TLInputStickerSet()
@@ -2591,7 +2624,7 @@
 @interface TLStickerSet()
 @property int flags;
 @property (nonatomic,assign,readonly) BOOL isInstalled;
-@property (nonatomic,assign,readonly) BOOL isDisabled;
+@property (nonatomic,assign,readonly) BOOL isArchived;
 @property (nonatomic,assign,readonly) BOOL isOfficial;
 @property long n_id;
 @property long access_hash;
@@ -3134,10 +3167,11 @@
 @property int flags;
 @property (nonatomic,assign,readonly) BOOL isAlert;
 @property (nonatomic, strong) NSString* message;
+@property (nonatomic, strong) NSString* url;
 @end
 
 @interface TL_messages_botCallbackAnswer : TLmessages_BotCallbackAnswer<NSCoding>
-+(TL_messages_botCallbackAnswer*)createWithFlags:(int)flags  message:(NSString*)message;
++(TL_messages_botCallbackAnswer*)createWithFlags:(int)flags  message:(NSString*)message url:(NSString*)url;
 @end
 	
 @interface TLmessages_MessageEditData()
@@ -3246,6 +3280,60 @@
 @end
 @interface TL_draftMessage : TLDraftMessage<NSCoding>
 +(TL_draftMessage*)createWithFlags:(int)flags  reply_to_msg_id:(int)reply_to_msg_id message:(NSString*)message entities:(NSMutableArray*)entities date:(int)date;
+@end
+	
+@interface TLmessages_FeaturedStickers()
+@property int n_hash;
+@property (nonatomic, strong) NSMutableArray* sets;
+@property (nonatomic, strong) NSMutableArray* unread;
+@end
+
+@interface TL_messages_featuredStickersNotModified : TLmessages_FeaturedStickers<NSCoding>
++(TL_messages_featuredStickersNotModified*)create;
+@end
+@interface TL_messages_featuredStickers : TLmessages_FeaturedStickers<NSCoding>
++(TL_messages_featuredStickers*)createWithN_hash:(int)n_hash sets:(NSMutableArray*)sets unread:(NSMutableArray*)unread;
+@end
+	
+@interface TLmessages_RecentStickers()
+@property int n_hash;
+@property (nonatomic, strong) NSMutableArray* stickers;
+@end
+
+@interface TL_messages_recentStickersNotModified : TLmessages_RecentStickers<NSCoding>
++(TL_messages_recentStickersNotModified*)create;
+@end
+@interface TL_messages_recentStickers : TLmessages_RecentStickers<NSCoding>
++(TL_messages_recentStickers*)createWithN_hash:(int)n_hash stickers:(NSMutableArray*)stickers;
+@end
+	
+@interface TLmessages_ArchivedStickers()
+@property int n_count;
+@property (nonatomic, strong) NSMutableArray* sets;
+@end
+
+@interface TL_messages_archivedStickers : TLmessages_ArchivedStickers<NSCoding>
++(TL_messages_archivedStickers*)createWithN_count:(int)n_count sets:(NSMutableArray*)sets;
+@end
+	
+@interface TLmessages_StickerSetInstallResult()
+@property (nonatomic, strong) NSMutableArray* sets;
+@end
+
+@interface TL_messages_stickerSetInstallResultSuccess : TLmessages_StickerSetInstallResult<NSCoding>
++(TL_messages_stickerSetInstallResultSuccess*)create;
+@end
+@interface TL_messages_stickerSetInstallResultArchive : TLmessages_StickerSetInstallResult<NSCoding>
++(TL_messages_stickerSetInstallResultArchive*)createWithSets:(NSMutableArray*)sets;
+@end
+	
+@interface TLStickerSetCovered()
+@property (nonatomic, strong) TLStickerSet* set;
+@property (nonatomic, strong) TLDocument* cover;
+@end
+
+@interface TL_stickerSetCovered : TLStickerSetCovered<NSCoding>
++(TL_stickerSetCovered*)createWithSet:(TLStickerSet*)set cover:(TLDocument*)cover;
 @end
 	
 @interface TLAudio()

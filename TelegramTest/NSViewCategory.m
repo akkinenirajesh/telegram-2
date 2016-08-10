@@ -8,6 +8,7 @@
 
 #import "NSViewCategory.h"
 #import "TMAnimations.h"
+#import "TGAnimationBlockDelegate.h"
 @interface CALAyerAnimationInstance : NSObject
 @end
 
@@ -83,6 +84,144 @@
     anim.delegate = instance();
     [anim setValue:self forKey:@"view"];
     [self.layer addAnimation:anim forKey:key];
+}
+
+-(void)removeFromSuperview:(BOOL)animated {
+    
+    if(animated) {
+        CAAnimation *animation = [TMAnimations fadeWithDuration:0.2 fromValue:1.0f toValue:0.0];
+        
+        TGAnimationBlockDelegate *block = [[TGAnimationBlockDelegate alloc] initWithLayer:self.layer];
+        
+        block.completion = ^(BOOL completed){
+            if(completed)
+                [self removeFromSuperview];
+        };
+        
+        animation.delegate = block;
+        
+        [self.layer removeAnimationForKey:@"opacity"];
+        
+        [self.layer addAnimation:animation forKey:@"opacity"];
+        
+        self.layer.opacity = 1.0;
+
+    } else {
+        [self removeFromSuperview];
+    }
+    
+}
+
+
+-(void)moveWithCAAnimation:(NSPoint)position animated:(BOOL)animated {
+    
+    if(animated) {
+        int presentX = NSMinX(self.frame);
+        int presentY = NSMinY(self.frame);
+        
+        CALayer *presentLayer = (CALayer *)[self.layer presentationLayer];
+        
+        if(presentLayer && [self.layer animationForKey:@"position"]) {
+            presentY = [[presentLayer valueForKeyPath:@"frame.origin.y"] floatValue];
+            presentX = [[presentLayer valueForKeyPath:@"frame.origin.x"] floatValue];
+        }
+        
+        CABasicAnimation *anim = [TMAnimations postionWithDuration:0.2 fromValue:NSMakePoint(presentX, presentY) toValue:position];
+        
+        
+        [self.layer removeAnimationForKey:@"position"];
+        [self.layer addAnimation:anim forKey:@"position"];
+        [self.layer setPosition:position];
+
+    }
+
+    
+    
+    [self setFrameOrigin:position];
+}
+
+-(void)heightWithCAAnimation:(NSRect)rect animated:(BOOL)animated {
+    if(animated) {
+        int presentHeight = NSHeight(self.frame);
+        CALayer *presentLayer = (CALayer *)[self.layer presentationLayer];
+        if(presentLayer && [self.layer animationForKey:@"bounds"]) {
+            presentHeight = [[presentLayer valueForKeyPath:@"bounds.size.height"] floatValue];
+        }
+        CABasicAnimation *animation = [CABasicAnimation animationWithKeyPath:@"bounds.size.height"];
+        animation.duration = 0.2;
+        animation.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseOut];
+        animation.removedOnCompletion = YES;
+        animation.fromValue = @(presentHeight);
+        animation.toValue = @(NSHeight(rect));
+        [self.layer removeAnimationForKey:@"bounds"];
+        [self.layer addAnimation:animation forKey:@"bounds"];
+        [self.layer setFrame:rect];
+    }
+    
+    
+    [self setFrame:rect];
+}
+
+
+
+-(void)widthWithCAAnimation:(NSRect)rect animated:(BOOL)animated {
+    if(animated) {
+        int presentWidth = NSWidth(self.frame);
+        CALayer *presentLayer = (CALayer *)[self.layer presentationLayer];
+        if(presentLayer && [self.layer animationForKey:@"bounds"]) {
+            presentWidth = [[presentLayer valueForKeyPath:@"bounds.size.width"] floatValue];
+        }
+        CABasicAnimation *animation = [CABasicAnimation animationWithKeyPath:@"bounds.size.width"];
+        animation.duration = 0.2;
+        animation.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseOut];
+        animation.removedOnCompletion = YES;
+        animation.fromValue = @(presentWidth);
+        animation.toValue = @(NSWidth(rect));
+        [self.layer removeAnimationForKey:@"bounds"];
+        [self.layer addAnimation:animation forKey:@"bounds"];
+        [self.layer setFrame:rect];
+    }
+   
+    
+    [self setFrame:rect];
+}
+
+-(void)performCAFade:(BOOL)animated {
+    
+    if(animated)  {
+        float presentOpacity = 1.0;
+        CALayer *presentLayer = (CALayer *)[self.layer presentationLayer];
+        if(presentLayer && [self.layer animationForKey:@"opacity"]) {
+            presentOpacity = [[presentLayer valueForKeyPath:@"opacity"] floatValue];
+        }
+        
+        [self.layer removeAnimationForKey:@"opacity"];
+        [self.layer addAnimation:[TMAnimations fadeWithDuration:0.2f fromValue:presentOpacity toValue:0.0f] forKey:@"opacity"];
+    } else {
+        [self.layer removeAnimationForKey:@"opacity"];
+
+    }
+    
+    
+    self.layer.opacity = 0.0;
+    
+}
+-(void)performCAShow:(BOOL)animated {
+    if(animated) {
+        float presentOpacity = 0;
+        CALayer *presentLayer = (CALayer *)[self.layer presentationLayer];
+        if(presentLayer && [self.layer animationForKey:@"opacity"]) {
+            presentOpacity = [[presentLayer valueForKeyPath:@"opacity"] floatValue];
+        }
+        [self.layer removeAnimationForKey:@"opacity"];
+
+        [self.layer addAnimation:[TMAnimations fadeWithDuration:0.2f fromValue:presentOpacity toValue:1.0f] forKey:@"opacity"];
+
+    } else {
+        [self.layer removeAnimationForKey:@"opacity"];
+    }
+    
+    self.layer.opacity = 1.0f;
 }
 
 static CALAyerAnimationInstance *instance() {

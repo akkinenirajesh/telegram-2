@@ -180,26 +180,39 @@ NSString *const tableMessagesMedia = @"messages_media_v1";
 NSString *const tableModernDialogs = @"modern_dialogs";
 
 
-
-
++(NSString *)dbpath {
+    
+    NSUserDefaults *def = [NSUserDefaults standardUserDefaults];
+    
+    NSInteger v =  [def integerForKey:@"dbdversion"];
+    
+    NSString *dname = v > 0 ? [NSString stringWithFormat:@"encrypted_%ld.sqlite",(long)v] : @"encrypted.sqlite";
+    
+#ifdef TGDEBUG 
+    dname = v > 0 ? [NSString stringWithFormat:@"encrypted6_%ld.sqlite",(long)v] : @"encrypted6.sqlite";;
+#endif
+    
+    return [[Storage path] stringByAppendingPathComponent:dname];
+}
 
 -(void)open:(void (^)())completeHandler queue:(dispatch_queue_t)dqueue {
+    
+    
     
     if(!dqueue)
         dqueue = dispatch_get_current_queue();
     
 
-    NSString *dbPath = [[Storage path] stringByAppendingPathComponent:@"encrypted.sqlite"];
+    NSString *dbPath = [Storage dbpath];
     
-#ifdef TGDEBUG 
-     dbPath = [[Storage path] stringByAppendingPathComponent:@"encrypted6.sqlite"];
-#endif
+    
+  
     
     if(!encryptionKey) {
         return;
     }
     
-    self->queue = [FMDatabaseQueue databaseQueueWithPath:dbPath];
+    queue = [FMDatabaseQueue databaseQueueWithPath:dbPath];
 
     
     __block BOOL res = NO;
@@ -209,6 +222,8 @@ NSString *const tableModernDialogs = @"modern_dialogs";
 
     
     [queue inDatabase:^(FMDatabase *db) {
+        
+       
         
         [db close];
         
@@ -446,7 +461,7 @@ static NSString *encryptionKey;
 //
 -(void) createAndCheckDatabase:(NSString *)dbName
 {
-    NSString *encryptedDatabasePath = [[Storage path] stringByAppendingPathComponent:@"encrypted.sqlite"];
+    NSString *encryptedDatabasePath = [Storage dbpath];
 
     
     NSFileManager *fileManager = [NSFileManager defaultManager];
@@ -524,7 +539,7 @@ static NSString *encryptionKey;
 
 
 +(void)drop {
-    [[NSFileManager defaultManager] removeItemAtPath:[[Storage path] stringByAppendingPathComponent:@"encrypted.sqlite"] error:nil];
+    [[NSFileManager defaultManager] removeItemAtPath:[Storage dbpath] error:nil];
     
     [[Storage yap] readWriteWithBlock:^(YapDatabaseReadWriteTransaction * __nonnull transaction) {
         [transaction removeAllObjectsInAllCollections];
@@ -535,8 +550,21 @@ static NSString *encryptionKey;
     
     dispatch_async(dqueue, ^{
         [self->queue inDatabase:^(FMDatabase *db) {
-            [[NSFileManager defaultManager] removeItemAtPath:self->queue.path error:nil];
             
+            NSString *folder = [self->queue.path stringByDeletingLastPathComponent];
+            
+            NSDirectoryEnumerator *enumerator = [[NSFileManager defaultManager] enumeratorAtPath:folder];
+            
+            [enumerator.allObjects enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+                
+                if([obj hasPrefix:@"encrypted"]) {
+                    [[NSFileManager defaultManager] removeItemAtPath:[folder stringByAppendingPathComponent:obj] error:nil];
+                }
+                
+            }];
+            
+            [[NSUserDefaults standardUserDefaults] setInteger:0 forKey:@"dbdversion"];
+            [[NSUserDefaults standardUserDefaults] synchronize];
             
             [[Storage yap] readWriteWithBlock:^(YapDatabaseReadWriteTransaction * __nonnull transaction) {
                 [transaction removeAllObjectsInAllCollections];
@@ -593,7 +621,31 @@ static NSString *encryptionKey;
     }];
 }
 
-
+-(SSignal *)runDestroyer {
+    
+    dispatch_queue_t dqueue = dispatch_get_current_queue();
+    
+    return [[SSignal alloc] initWithGenerator:^id<SDisposable>(SSubscriber *subscriber) {
+        
+        int v = (int) [[NSUserDefaults standardUserDefaults] integerForKey:@"dbdversion"];
+        [[NSUserDefaults standardUserDefaults] setInteger:++v forKey:@"dbdversion"];
+        [[NSUserDefaults standardUserDefaults] synchronize];
+        
+        [self open:^{
+            
+            dispatch_async(dqueue, ^{
+                [subscriber putNext:nil];
+                [subscriber putCompletion];
+            });
+            
+        } queue:dispatch_get_current_queue()];
+        
+         return nil;
+        
+    }];
+    
+   
+}
 
 
 - (void)findFileInfoByPathHash:(NSString *)pathHash completeHandler:(void (^)(BOOL result, id file))completeHandler {
@@ -612,7 +664,7 @@ static NSString *encryptionKey;
         [result close];
         
         if(completeHandler) {
-            [[ASQueue mainQueue] dispatchOnQueue:^{
+            [ASQueue dispatchOnMainQueue:^{
                 completeHandler(file != nil, file);
             }];
         }
@@ -644,9 +696,7 @@ static NSString *encryptionKey;
 }
 
 - (void)setFileInfo:(id)file forPathHash:(NSString *)pathHash {
-    
-    int bp = 0;
-    
+        
     [queue inDatabase:^(FMDatabase *db) {
         [db executeUpdate:@"insert or replace into files (hash, serialized) values (?,?)", pathHash, [TLClassStore serialize:file isCacheSerialize:NO]];
     }];
@@ -682,13 +732,13 @@ TL_localMessage *parseMessage(FMResultSet *result) {
             
             [attrs addObject:[TL_documentAttributeAudio createWithFlags:(1 << 10) duration:msg.media.audio.duration title:nil performer:nil waveform:nil]];
             
-            msg.media = [TL_messageMediaDocument createWithDocument:[TL_document createWithN_id:msg.media.audio.n_id access_hash:msg.media.audio.access_hash date:msg.media.audio.date mime_type:msg.media.audio.mime_type size:msg.media.audio.size thumb:[TL_photoSizeEmpty createWithType:@"x"] dc_id:msg.media.audio.dc_id attributes:attrs] caption:@""];
+            msg.media = [TL_messageMediaDocument createWithDocument:[TL_document createWithN_id:msg.media.audio.n_id access_hash:msg.media.audio.access_hash date:msg.media.audio.date mime_type:msg.media.audio.mime_type size:msg.media.audio.size thumb:[TL_photoSizeEmpty createWithType:@"x"] dc_id:msg.media.audio.dc_id version:0 attributes:attrs] caption:@""];
         } else if([msg.media isKindOfClass:[TL_messageMediaVideo class]]) {
             NSMutableArray *attrs = [NSMutableArray array];
             
             [attrs addObject:[TL_documentAttributeVideo createWithDuration:msg.media.video.duration w:msg.media.video.w h:msg.media.video.h]];
             
-            msg.media = [TL_messageMediaDocument createWithDocument:[TL_document createWithN_id:msg.media.video.n_id access_hash:msg.media.video.access_hash date:msg.media.video.date mime_type:msg.media.video.mime_type size:msg.media.video.size thumb:msg.media.video.thumb dc_id:msg.media.video.dc_id attributes:attrs] caption:msg.media.caption];
+            msg.media = [TL_messageMediaDocument createWithDocument:[TL_document createWithN_id:msg.media.video.n_id access_hash:msg.media.video.access_hash date:msg.media.video.date mime_type:msg.media.video.mime_type size:msg.media.video.size thumb:msg.media.video.thumb dc_id:msg.media.video.dc_id version:0 attributes:attrs] caption:msg.media.caption];
         }
         
         if(![msg isKindOfClass:[TL_messageEmpty class]])
@@ -852,7 +902,7 @@ TL_localMessage *parseMessage(FMResultSet *result) {
     [messages enumerateObjectsUsingBlock:^(TL_localMessage *obj, NSUInteger idx, BOOL * _Nonnull stop) {
         
         if(obj.reply_to_msg_id != 0) {
-            obj.replyMessage = support[@(channelMsgId(obj.reply_to_msg_id, obj.peer_id))];
+            obj.replyMessage = support[@(isChannel ? channelMsgId(obj.reply_to_msg_id, obj.peer_id) : obj.reply_to_msg_id)];
         } else if(([obj isKindOfClass:[TL_destructMessage45 class]] && ((TL_destructMessage45 *)obj).reply_to_random_id != 0)) {
             obj.replyMessage = support[@(((TL_destructMessage45 *)obj).reply_to_random_id)];
         }
@@ -1319,7 +1369,9 @@ TL_localMessage *parseMessage(FMResultSet *result) {
             
         } else {
             
-            result = [db executeQuery:[NSString stringWithFormat:@"select * from %@ where n_id > ? and peer_id = ? and (flags & ?) = ?",tableMessages],@(max_id),@(peer_id),@(TGOUTMESSAGE),@(TGOUTMESSAGE)];
+            int read_outbox_max_id = [db intForQuery:[NSString stringWithFormat:@"select read_outbox_max_id from %@ where peer_id = ?",tableModernDialogs],@(peer_id)];
+            
+            result = [db executeQuery:[NSString stringWithFormat:@"select * from %@ where n_id <= ? and n_id > ? and peer_id = ? and (flags & ?) = ?",tableMessages],@(max_id),@(read_outbox_max_id),@(peer_id),@(TGOUTMESSAGE),@(TGOUTMESSAGE)];
         }
         
         
@@ -1964,16 +2016,11 @@ TL_localMessage *parseMessage(FMResultSet *result) {
 }
 
 
--(void)insertChat:(TLChat *)chat completeHandler:(void (^)(BOOL))completeHandler {
+-(void)insertChat:(TLChat *)chat {
     
-    [queue inDatabase:^(FMDatabase *db) {
-        //[db beginTransaction];
-        BOOL result = [db executeUpdate:@"insert or replace into chats (n_id,serialized) values (?,?)",[NSNumber numberWithInt:chat.n_id], [TLClassStore serialize:chat]];
-        //[db commit];
-        dispatch_async(dispatch_get_main_queue(), ^{
-            if(completeHandler) completeHandler(result);
-        });
-    }];
+    if(chat) {
+        [self insertChats:@[chat]];
+    }
 }
 
 
@@ -2011,7 +2058,7 @@ TL_localMessage *parseMessage(FMResultSet *result) {
 }
 
 
--(void)insertChats:(NSArray *)chats completeHandler:(void (^)(BOOL))completeHandler {
+-(void)insertChats:(NSArray *)chats {
     
     [queue inDatabase:^(FMDatabase *db) {
         __block BOOL result;
@@ -2027,9 +2074,6 @@ TL_localMessage *parseMessage(FMResultSet *result) {
             
         }
         [db commit];
-        dispatch_async(dispatch_get_main_queue(), ^{
-            if(completeHandler) completeHandler(result);
-        });
         
     }];
 }
@@ -2112,11 +2156,11 @@ TL_localMessage *parseMessage(FMResultSet *result) {
 }
 
 
-- (void)insertUser:(TLUser *)user completeHandler:(void (^)(BOOL result))completeHandler {
-    [self insertUsers:@[user] completeHandler:completeHandler];
+- (void)insertUser:(TLUser *)user {
+    [self insertUsers:@[user]];
 }
 
-- (void)insertUsers:(NSArray *)users completeHandler:(void (^)(BOOL result))completeHandler {
+- (void)insertUsers:(NSArray *)users{
     
     [queue inDatabase:^(FMDatabase *db) {
         
@@ -2142,12 +2186,6 @@ TL_localMessage *parseMessage(FMResultSet *result) {
         }
         
         [db commit];
-        
-        if(completeHandler) {
-            [[ASQueue mainQueue] dispatchOnQueue:^{
-                completeHandler(YES);
-            }];
-        }
     }];
 }
 
@@ -2851,7 +2889,7 @@ TL_localMessage *parseMessage(FMResultSet *result) {
 
 +(void)addWebpage:(TLWebPage *)webpage forLink:(NSString *)link {
     
-    int bp = 0;
+    
     [[Storage yap] readWriteWithBlock:^(YapDatabaseReadWriteTransaction *transaction) {
         
         [transaction setObject:[TLClassStore serialize:webpage] forKey:display_url(link) inCollection:@"webpage"];
@@ -2965,10 +3003,20 @@ TL_localMessage *parseMessage(FMResultSet *result) {
 }
 
 -(void)addHolesAroundMessage:(TL_localMessage *)message {
+    [self addHolesAroundMessage:message completionHandler:nil];
+}
+
+-(void)addHolesAroundMessage:(TL_localMessage *)message completionHandler:(void (^)(TGMessageHole *hole, BOOL next))completionHandler {
+    
+    dispatch_queue_t dqueue = dispatch_get_current_queue();
+    
     [queue inDatabase:^(FMDatabase *db) {
         
         
         BOOL messageIsset = [db boolForQuery:[NSString stringWithFormat:@"select count(*) from %@ where n_id = ?",message.isChannelMessage ? tableChannelMessages : tableMessages],@(message.channelMsgId)];
+        
+        TGMessageHole *hole;
+        BOOL next;
         
         if(!messageIsset)
         {
@@ -2978,15 +3026,21 @@ TL_localMessage *parseMessage(FMResultSet *result) {
                 minSynchedId = INT32_MAX;
             }
             
-            TGMessageHole *hole;
-            
             if(minSynchedId > message.n_id) {
                 hole  = [[TGMessageHole alloc] initWithUniqueId:-rand_int() peer_id:message.peer_id min_id:message.n_id+1 max_id:minSynchedId-1 date:message.date count:0];
+                next = YES;
             } else {
                 hole = [[TGMessageHole alloc] initWithUniqueId:-rand_int() peer_id:message.peer_id min_id:minSynchedId+1 max_id:message.n_id-1 date:message.date count:0];
+                next = NO;
             }
             
             [self insertMessagesHole:hole];
+        }
+        
+        if(completionHandler) {
+            dispatch_async(dqueue, ^{
+                completionHandler(hole,next);
+            });
         }
         
     }];

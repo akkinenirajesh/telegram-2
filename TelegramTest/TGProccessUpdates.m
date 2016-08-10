@@ -21,6 +21,7 @@
 #import "FullUsersManager.h"
 #import "TGUpdateChannels.h"
 #import "TGForceChannelUpdate.h"
+#import "TGModernESGViewController.h"
 @interface TGProccessUpdates ()
 @property (nonatomic,strong) TGUpdateState *updateState;
 @property (nonatomic,strong) NSMutableArray *statefulUpdates;
@@ -564,10 +565,6 @@ static NSArray *channelUpdates;
         
         if([update isKindOfClass:[TL_updateSavedGifs class]]) {
             
-            //TODO
-            
-            int bp = 0;
-            
             return;
         }
         
@@ -716,7 +713,7 @@ static NSArray *channelUpdates;
             
             
             if(updateNotification.popup) {
-                [[ASQueue mainQueue] dispatchOnQueue:^{
+                [ASQueue dispatchOnMainQueue:^{
                     alert(NSLocalizedString(@"UpdateNotification.Alert", nil), (NSString *)updateNotification.message);
                 }];
                 
@@ -765,9 +762,6 @@ static NSArray *channelUpdates;
             TL_updateContactLink *contactLink = (TL_updateContactLink *)update;
             
             BOOL isContact = [contactLink.my_link isKindOfClass:[TL_contactLinkContact class]];
-            
-            
-            MTLog(@"%@ contact %d", isContact ? @"add" : @"delete", contactLink.user_id);
             
             
             TLUser *user = [[[UsersManager sharedManager] find:contactLink.user_id] copy];
@@ -883,7 +877,7 @@ static NSArray *channelUpdates;
                 user.photo = [update photo];
                 
                 if(user) {
-                    [[Storage manager] insertUser:user completeHandler:nil];
+                    [[Storage manager] insertUser:user];
                     PreviewObject *previewObject = [[PreviewObject alloc] initWithMsdId:user.photo.photo_id media:[TL_photoSize createWithType:@"x" location:user.photo.photo_big w:640 h:640 size:0] peer_id:user.n_id];
                     [Notification perform:USER_UPDATE_PHOTO data:@{KEY_USER:user,KEY_PREVIOUS:@([update previous]), KEY_PREVIEW_OBJECT:previewObject}];
                 }
@@ -894,15 +888,7 @@ static NSArray *channelUpdates;
         }
         
         if([update isKindOfClass:[TL_updateUserStatus class]]) {
-            
-            //        if(update.user_id == [UsersManager currentUserId]) {
-            //            [[Telegram sharedInstance] setIsOnline:NO];
-            //            [[Telegram sharedInstance] setAccountOnline];
-            //
-            //            return;
-            //        }
             [[UsersManager sharedManager] setUserStatus:[update status] forUid:update.user_id];
-            
             return;
         }
         
@@ -943,6 +929,11 @@ static NSArray *channelUpdates;
             return;
         }
         
+        if([update isKindOfClass:[TL_updateRecentStickers class]]) {
+            [TGModernESGViewController reloadStickers];
+            return;
+        }
+        
         if([update isKindOfClass:[TL_updateUserBlocked class]]) {
             BOOL blocked = ((TL_updateUserBlocked *)update).blocked;
             int user_id = ((TL_updateUserBlocked *)update).user_id;
@@ -973,6 +964,9 @@ static NSArray *channelUpdates;
         
         if([update isKindOfClass:[TL_updateContactRegistered class]]) {
             
+            if(![SettingsArchiver checkMaskedSetting:NRegistredUsers])
+                return;
+            
             TLUser *user = [[UsersManager sharedManager] find:[update user_id]];
             
             if(!user) {
@@ -983,6 +977,11 @@ static NSArray *channelUpdates;
             NSString *text = [NSString stringWithFormat:NSLocalizedString(@"Notification.UserRegistred", nil),user.fullName];
             
             TL_localMessageService *message = [TL_localMessageService createWithFlags:0 n_id:0 from_id:[update user_id] to_id:[TL_peerUser createWithUser_id:[update user_id]] reply_to_msg_id:0 date:[update date] action:[TL_messageActionEncryptedChat createWithTitle:text] fakeId:[MessageSender getFakeMessageId] randomId:rand_long() dstate:DeliveryStateNormal];
+            
+            TL_conversation *conversation = message.conversation;
+            if(conversation.read_inbox_max_id == 0) {
+                conversation.read_inbox_max_id = message.n_id;
+            }
             
             [MessagesManager addAndUpdateMessage:message];
             
@@ -1019,8 +1018,31 @@ static NSArray *channelUpdates;
     }
 }
 
+static const int overpts = 5000;
+
 -(void)updateDifference {
-    [self updateDifference:NO updateConnectionState:YES];
+    
+    
+    [RPCRequest sendRequest:[TLAPI_updates_getState create] successHandler:^(RPCRequest *request, TL_updates_state * state) {
+        if(_updateState.pts == 0 || (_updateState.pts + overpts) > state.pts) {
+            [self updateDifference:NO updateConnectionState:YES];
+        } else {
+            [[[Storage manager] runDestroyer] startWithNext:^(id next) {
+                
+                _updateState = [[TGUpdateState alloc] initWithPts:state.pts qts:state.qts date:state.date seq:state.seq pts_count:0];
+                [self saveUpdateState];
+                
+                [SharedManager drop];
+                [Notification perform:DIALOGS_FLUSH_AND_RELOAD data:@{}];
+            }];
+            
+        }
+    } errorHandler:^(id request, RpcError *error) {
+        _holdUpdates = NO;
+        [self updateDifference:NO updateConnectionState:YES];
+    } timeout:0 queue:queue.nativeQueue];
+
+    
 }
 
 -(void)updateDifference:(BOOL)force updateConnectionState:(BOOL)updateConnectionState  {
@@ -1075,6 +1097,9 @@ static NSArray *channelUpdates;
     
     TLAPI_updates_getDifference *dif = [TLAPI_updates_getDifference createWithPts:_updateState.pts date:_updateState.date qts:_updateState.qts];
     [RPCRequest sendRequest:dif successHandler:^(RPCRequest *request, id response)  {
+        
+        NSLog(@"start new updateDifference update update: %@",_updateState);
+
         
         TL_updates_difference *updates = response;
         
@@ -1135,9 +1160,9 @@ static NSArray *channelUpdates;
             
             for (TLUpdate *update in [updates other_updates]) {
                 
-                if([channelUpdates indexOfObject:update.className] != NSNotFound)
+                if([channelUpdates indexOfObject:update.className] != NSNotFound) {
                     [self.channelsUpdater addUpdate:update];
-                else {
+                } else {
                      [self proccessUpdate:update];
                 }
                 
@@ -1155,10 +1180,8 @@ static NSArray *channelUpdates;
             
             
             if(intstate != nil) {
-             //   dispatch_after_seconds_queue(0.5, ^{
                  _holdUpdates = NO;
                 [self uptodateWithConnectionState:updateConnectionState];
-             //   }, queue.nativeQueue);
                 
             } else {
                 

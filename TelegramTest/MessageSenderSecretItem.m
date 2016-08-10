@@ -18,7 +18,7 @@
 }
 
 
--(id)initWithMessage:(NSString *)message forConversation:(TL_conversation *)conversation noWebpage:(BOOL)noWebpage additionFlags:(int)additionFlags  {
+-(id)initWithMessage:(NSString *)message forConversation:(TL_conversation *)conversation entities:(NSArray *)entities noWebpage:(BOOL)noWebpage additionFlags:(int)additionFlags  {
     if(self = [super initWithConversation:conversation]) {
         
         
@@ -54,18 +54,19 @@
             
             [self takeAndFillReplyMessage];
             
-            NSMutableArray *entities = [NSMutableArray array];
-            
-           
-           
-            self.message.message = [MessageSender parseEntities:self.message.message entities:entities backstrips:@"```" startIndex:0];
-            
-            self.message.message = [MessageSender parseEntities:self.message.message entities:entities backstrips:@"`" startIndex:0];
-            
-            self.message.entities = entities;
+
+            self.message.entities = [entities mutableCopy];
         }
         
+        TGInputMessageTemplate *template = self.message.conversation.inputTemplate;
         
+        
+        [[template updateSignalText:[[NSAttributedString alloc] init]] startWithNext:^(id next) {
+            if([next[0] boolValue]) {
+                [template saveTemplateInCloudIfNeeded];
+                [template performNotification];
+            }
+        }];
         
         [self.message save:YES];
     }

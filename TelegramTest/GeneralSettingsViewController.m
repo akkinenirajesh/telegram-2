@@ -167,16 +167,23 @@
     [self.tableView insert:bigFong atIndex:self.tableView.list.count tableRedraw:NO];
     
 
-    GeneralSettingsRowItem *stickers = [[GeneralSettingsRowItem alloc] initWithType:SettingsRowItemTypeNext callback:^(TGGeneralRowItem *item) {
+    __block NSUInteger nFeaturedSets = 0;
+    
+    [[Storage yap] readWriteWithBlock:^(YapDatabaseReadWriteTransaction * _Nonnull transaction) {
+        
+        nFeaturedSets = [[transaction objectForKey:@"featuredUnreadSets" inCollection:STICKERS_COLLECTION] count];
+        
+    }];
+    
+    GeneralSettingsRowItem *stickers = [[GeneralSettingsRowItem alloc] initWithType:SettingsRowItemTypeNextBadge callback:^(TGGeneralRowItem *item) {
         
         TGStickersSettingsViewController *settingViewController = [[TGStickersSettingsViewController alloc] initWithFrame:NSZeroRect];
         
         [self.navigationViewController pushViewController:settingViewController animated:YES];
         
-        [[Telegram rightViewController] showStickerSettingsController];
         
         
-    } description:NSLocalizedString(@"Settings.Stickers", nil) height:42 stateback:^id(TGGeneralRowItem *item) {
+    } description:NSLocalizedString(@"Settings.Stickers", nil) subdesc:nFeaturedSets > 0 ? [NSString stringWithFormat:@"%ld",nFeaturedSets] : nil height:42 stateback:^id(TGGeneralRowItem *item) {
         return nil;
     }];
     
@@ -281,9 +288,23 @@
     [self.tableView insert:esglayout atIndex:self.tableView.list.count tableRedraw:NO];
 
     
+    GeneralSettingsRowItem *nregistredusers = [[GeneralSettingsRowItem alloc] initWithType:SettingsRowItemTypeSwitch callback:^(TGGeneralRowItem *item) {
+        
+        [SettingsArchiver addOrRemoveSetting:NRegistredUsers];
+        
+        
+    } description:NSLocalizedString(@"Settings.NRegistredUsers", nil) height:42 stateback:^id(TGGeneralRowItem *item) {
+        return @([SettingsArchiver checkMaskedSetting:NRegistredUsers]);
+    }];
+    
+    
+    [self.tableView insert:nregistredusers atIndex:self.tableView.list.count tableRedraw:NO];
+    
     
     
 #ifdef TGDEBUG
+    
+#ifndef TGSTABLE
     
     GeneralSettingsRowItem *sendLogs = [[GeneralSettingsRowItem alloc] initWithType:SettingsRowItemTypeNext callback:^(TGGeneralRowItem *item) {
         
@@ -334,7 +355,7 @@
 
         
     }
-    
+#endif
     
 #endif
     

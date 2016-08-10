@@ -8,9 +8,46 @@
 
 #import "TGGeneralInputTextRowView.h"
 #import "TGGeneralInputRowItem.h"
+#import "TGPopoverHint.h"
+#import "NSTextView+EmojiExtension.h"
+@interface TGInputTextField : NSTextView
+@property (nonatomic,strong) NSAttributedString *placeholder;
+@end
 
-@interface TGGeneralInputTextRowView () <NSTextFieldDelegate,TMTextFieldDelegate>
-@property (nonatomic,strong) TMTextField *textField;
+@implementation TGInputTextField
+
+
+-(void)drawRect:(NSRect)dirtyRect {
+    [super drawRect:dirtyRect];
+    
+    if(self.string.length == 0 && self.placeholder.length > 0)
+    {
+        if(self.placeholder) {
+            
+            [self.placeholder drawAtPoint:NSMakePoint(6, 0)];
+        }
+    }
+}
+
+-(void)keyDown:(NSEvent *)theEvent {
+    if([TGPopoverHint isShown] && (theEvent.keyCode == 125 || theEvent.keyCode == 126 || theEvent.keyCode == 121 || theEvent.keyCode == 116)) {
+        if(theEvent.keyCode == 125 || theEvent.keyCode == 121) {
+            [[TGPopoverHint hintView] selectNext];
+        } else {
+            [[TGPopoverHint hintView] selectPrev];
+        }
+    } else if(!isEnterAccess(theEvent)) {
+        if(isEnterEvent(theEvent)) {
+            [self insertNewline:nil];
+        } else
+            [super keyDown:theEvent];
+    }
+}
+
+@end
+
+@interface TGGeneralInputTextRowView () <NSTextViewDelegate>
+@property (nonatomic,strong) TGInputTextField *textField;
 @property (nonatomic,strong) TMView *separator;
 
 @end
@@ -24,17 +61,17 @@
 
 -(instancetype)initWithFrame:(NSRect)frameRect {
     if(self = [super initWithFrame:frameRect]) {
-        _textField = [[TMTextField alloc] init];
+        _textField = [[TGInputTextField alloc] init];
         [_textField setFont:TGSystemFont(13)];
         [_textField setEditable:YES];
-        [_textField setBordered:NO];
+      //  [_textField setBordered:NO];
         [_textField setDrawsBackground:NO];
         [_textField setFocusRingType:NSFocusRingTypeNone];
         
         
         [_textField setFrameSize:NSMakeSize(NSWidth(self.frame) - 60, 20)];
         
-        _textField.fieldDelegate = self;
+      //  _textField.fieldDelegate = self;
         _textField.delegate = self;
         
         [self addSubview:_textField];
@@ -55,6 +92,13 @@
    
 }
 
+-(BOOL)becomeFirstResponder {
+    
+    [self.window makeFirstResponder:_textField];
+    
+    return [_textField becomeFirstResponder];
+}
+
 -(void)textFieldDidBecomeFirstResponder:(id)field {
     if( self.item.callback != nil) {
         self.item.callback(self.item);
@@ -62,14 +106,18 @@
 }
 
 
--(void)controlTextDidChange:(NSNotification *)obj {
+
+- (void)textDidChange:(NSNotification *)notification {
     
-    [_textField setStringValue:[_textField.stringValue substringToIndex:MIN(200,_textField.stringValue.length)]];
+    [_textField setString:[_textField.string substringToIndex:MIN(self.item.limit > 0 ? self.item.limit : 200,_textField.string.length)]];
     
-    self.item.result = _textField.attributedStringValue;
+    self.item.result = [[_textField textStorage] attributedSubstringFromRange:NSMakeRange(0, _textField.string.length)];
     
-    NSSize size = [_textField.attributedStringValue sizeForTextFieldForWidth:NSWidth(self.frame) - (self.item.xOffset * 2)];
     
+    
+    NSSize size = [self.item.result sizeForTextFieldForWidth:NSWidth(self.frame) - (self.item.xOffset * 2)];
+    
+    size.height = MAX(17,size.height);
     
     self.item.height = size.height + 5;
     
@@ -90,7 +138,7 @@
         
        // [NSAnimationContext runAnimationGroup:^(NSAnimationContext * _Nonnull context) {
           //  [context setDuration:0.5];
-        [_textField setFrameOrigin:NSMakePoint(self.item.xOffset, 5)];
+        [_textField setFrameOrigin:NSMakePoint(self.item.xOffset - 4, 5)];
       //  } completionHandler:^{
             
     //    }];
@@ -106,13 +154,21 @@
         self.item.callback(self.item);
     }
     
+    
+ //
+    
+    if(self.item.hintAbility) {
+        [self.textField tryShowHintView:self.item.conversation];
+    }
+    
+    
 }
 
 
 -(void)setFrameSize:(NSSize)newSize {
     [super setFrameSize:newSize];
     
-    [_textField setFrameOrigin:NSMakePoint(self.item.xOffset, 5)];
+    [_textField setFrameOrigin:NSMakePoint(self.item.xOffset - 4, 5)];
     [_textField setFrameSize:NSMakeSize(newSize.width - self.item.xOffset * 2, self.item.height - 5)];
     [_separator setFrame:NSMakeRect(self.item.xOffset, 0, NSWidth(self.frame) - (self.item.xOffset * 2), DIALOG_BORDER_WIDTH)];
 }
@@ -121,10 +177,15 @@
 -(void)redrawRow {
     [super redrawRow];
     
-    [_textField setAttributedStringValue:self.item.result];
+    if(self.item.result.length > 0)
+        [[_textField textStorage] setAttributedString:self.item.result];
     
     if(self.item.placeholder.length > 0) {
-        [_textField setPlaceholderString:self.item.placeholder];
+        
+        NSMutableAttributedString *placeHolder = [[NSMutableAttributedString alloc] init];
+        [placeHolder appendString:self.item.placeholder withColor:GRAY_TEXT_COLOR];
+        [placeHolder setFont:_textField.font forRange:placeHolder.range];
+        [_textField setPlaceholder:placeHolder];
     }
     
     [self.window makeFirstResponder:_textField];

@@ -24,6 +24,7 @@ static NSTextField *testTextField() {
 }
 
 
+ NSString *const TGMentionUidAttributeName = @"TGMentionUidAttributeName";
 
 - (NSSize)sizeForTextFieldForWidth:(int)width {
     
@@ -76,7 +77,7 @@ static NSTextField *testTextField() {
         CTLineGetTypographicBounds(line, &ascent, &descent, &leading);
         
         if(ceil(descent) != 3) {
-            bounds.size.height = floor(ascent);
+            bounds.size.height-=3;
         }
         
     }

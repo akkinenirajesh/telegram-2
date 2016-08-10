@@ -27,6 +27,7 @@
     self = [super init];
     if(self) {
         self.frameInit = frame;
+        _navigationBarView = [[TMNavigationBar alloc] initWithFrame:NSZeroRect];
     }
     return self;
 }
@@ -34,6 +35,7 @@
 -(instancetype)init {
     if(self = [super init]) {
         self.frameInit = NSZeroRect;
+        _navigationBarView = [[TMNavigationBar alloc] initWithFrame:NSZeroRect];
     }
     
     return self;
@@ -50,8 +52,10 @@
 - (void)setCenterNavigationBarView:(TMView *)centerNavigationBarView animated:(BOOL)animation {
     self->_centerNavigationBarView = centerNavigationBarView;
     
-    if(self.navigationViewController && self.navigationViewController.currentController == self)
-        [self.navigationViewController.nagivationBarView setCenterView:centerNavigationBarView animated:animation];
+    [self.navigationBarView setCenterView:centerNavigationBarView animated:animation];
+    
+//    if(self.navigationViewController && self.navigationViewController.currentController == self)
+//        [self.navigationViewController.nagivationBarView setCenterView:centerNavigationBarView animated:animation];
 }
 
 - (void)setLeftNavigationBarView:(TMView *)leftNavigationBarView {
@@ -61,7 +65,9 @@
 - (void)setLeftNavigationBarView:(TMView *)leftNavigationBarView animated:(BOOL)animation {
     self->_leftNavigationBarView = leftNavigationBarView;
     
-    [self.navigationViewController.nagivationBarView setLeftView:leftNavigationBarView animated:animation];
+     [self.navigationBarView setLeftView:leftNavigationBarView animated:animation];
+    
+   // [self.navigationViewController.nagivationBarView setLeftView:leftNavigationBarView animated:animation];
 }
 
 - (void)setRightNavigationBarView:(TMView *)rightNavigationBarView {
@@ -71,8 +77,10 @@
 - (void)setRightNavigationBarView:(TMView *)rightNavigationBarView animated:(BOOL)animation {
     self->_rightNavigationBarView = rightNavigationBarView;
     
-    if(self.navigationViewController && self.navigationViewController.currentController == self)
-        [self.navigationViewController.nagivationBarView setRightView:rightNavigationBarView animated:animation];
+    [self.navigationBarView setRightView:rightNavigationBarView animated:animation];
+    
+ //   if(self.navigationViewController && self.navigationViewController.currentController == self)
+   //     [self.navigationViewController.nagivationBarView setRightView:rightNavigationBarView animated:animation];
 }
 
 -(TMView *)standartLeftBarView {
@@ -148,6 +156,13 @@
     [_centerTextField setCenterByView:self.centerNavigationBarView];
     
     [_centerTextField setFrameOrigin:NSMakePoint(_centerTextField.frame.origin.x, 13)];
+}
+
+-(BOOL)proccessEnterAction {
+    return NO;
+}
+-(BOOL)proccessEscAction {
+    return NO;
 }
 
 
@@ -351,6 +366,31 @@ static TGModalSetCaptionView *setCaptionView;
     }];
     
     return modals;
+}
+
++(void)becomeFirstResponderToModalView {
+    
+    
+    
+    NSArray *modals = [self modalsView];
+    
+    if(modals.count > 0) {
+        __block TGModalView *modalView = [modals lastObject];
+        
+        [modals enumerateObjectsWithOptions:NSEnumerationReverse usingBlock:^(TGModalView *obj, NSUInteger idx, BOOL * _Nonnull stop) {
+            
+            NSUInteger idx1 = [modalView.superview.subviews indexOfObject:modalView];
+            NSUInteger idx2 = [modalView.superview.subviews indexOfObject:obj];
+            
+            if(idx2 > idx1) {
+                modalView = obj;
+            }
+            
+        }];
+        
+        [modalView becomeFirstResponder];
+    }
+    
 }
 
 +(void)hideAllModals {

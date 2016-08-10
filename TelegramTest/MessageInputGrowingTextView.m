@@ -16,7 +16,8 @@
 #import "NSString+FindURLs.h"
 #import "NSString+Extended.h"
 #import "TGBotCommandsPopup.h"
-
+#import "TGSingleMediaSenderModalView.h"
+#import "MessagesBottomView.h"
 @interface TGCustomMentionRange : NSObject
 @property (nonatomic,strong) NSString *original;
 @property (nonatomic,assign) NSRange range;
@@ -49,13 +50,7 @@
 @end
 
 
-typedef enum {
-    PasteBoardItemTypeVideo,
-    PasteBoardItemTypeDocument,
-    PasteBoardItemTypeImage,
-    PasteBoardItemTypeGif,
-    PasteBoardTypeLink
-} PasteBoardItemType;
+
 
 
 @interface MessageInputGrowingTextView ()
@@ -78,25 +73,7 @@ typedef enum {
 
 
 
--(BOOL)performDragOperation:(id<NSDraggingInfo>)sender {
-    
-    NSPasteboard *pst = [sender draggingPasteboard];
-    
-    if([pst.types containsObject:NSStringPboardType]) {
-        NSString *text = [pst stringForType:NSStringPboardType];
-        
-        [self insertText:text];
-        
-        return YES;
-        
-    } else {
-        
-        return [MessageSender sendDraggedFiles:sender dialog:self.controller.conversation asDocument:NO messagesViewController:self.controller];
-    
-    }
-    
-    return NO;
-}
+
 
 -(void)insertText:(id)insertString {
     //lol. MessagesBottomView
@@ -126,6 +103,26 @@ typedef enum {
    
 }
 
+-(BOOL)performDragOperation:(id<NSDraggingInfo>)sender {
+    
+    NSPasteboard *pst = [sender draggingPasteboard];
+    
+    if([pst.types containsObject:NSStringPboardType]) {
+        NSString *text = [pst stringForType:NSStringPboardType];
+        
+        [self insertText:text];
+        
+        return YES;
+        
+    } else {
+        
+        return [MessageSender sendDraggedFiles:sender dialog:self.controller.conversation asDocument:NO messagesViewController:self.controller];
+        
+    }
+    
+    return NO;
+}
+
 
 -(NSDragOperation)draggingEntered:(id<NSDraggingInfo>)sender {
      NSPasteboard *pst = [sender draggingPasteboard];
@@ -146,6 +143,8 @@ typedef enum {
     __block NSMutableArray *files = [[NSMutableArray alloc] init];
     for(NSPasteboardItem *item in pasteboardItems) {
         NSString *url = [item stringForType:@"public.file-url"];
+        
+        
         if(url) {
             [files addObject:[[NSURL URLWithString:url] path]];
         }
@@ -174,13 +173,14 @@ typedef enum {
     __block NSString *path = nil;
     
     NSString *url = [[[pasteboard pasteboardItems] objectAtIndex:0] stringForType:@"public.file-url"];
+    NSString *caption = [[[pasteboard pasteboardItems] objectAtIndex:0] stringForType:@"public.plain-text"];
     if (url != nil) {
         path = [[NSURL URLWithString:url] path];
         
-        CFStringRef fileExtension = (__bridge CFStringRef) [path pathExtension];
+        CFStringRef fileExtension = (__bridge CFStringRef) [[path pathExtension] lowercaseString];
         CFStringRef fileUTI = UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension, fileExtension, NULL);
         
-        if (UTTypeConformsTo(fileUTI, kUTTypeImage)) {
+        if (UTTypeConformsTo(fileUTI, kUTTypeImage) && [document_preview_mime_types() indexOfObject:mimetypefromExtension((__bridge NSString *)fileExtension)] != NSNotFound) {
 
             image = [[NSImage alloc] initWithContentsOfURL:[NSURL URLWithString:url]];
             if(!image) {
@@ -237,15 +237,21 @@ typedef enum {
             iconImage = cropCenterWithSize(image, NSMakeSize(70, 70));
         } else {
             type = PasteBoardItemTypeDocument;
+            if(!path) {
+                path = exportPath(rand_long(), @"jpg");
+                [jpegNormalizedData(image) writeToFile:path atomically:YES];
+            }
             
-            path = exportPath(rand_long(), @"jpg");
-            [jpegNormalizedData(image) writeToFile:path atomically:YES];
         }
         
        
     }
 
-
+    dispatch_block_t modal_caption_block = ^{
+        TGSingleMediaSenderModalView *modalView = [[TGSingleMediaSenderModalView alloc] initWithFrame:NSZeroRect];
+        
+        [modalView show:self.window animated:YES file:path ? path : image.name filedata:jpegNormalizedData(image) ptype:type caption:caption conversation:self.controller.conversation messagesViewController:self.controller];
+    };
     
     
     NSAlert *alert = nil;
@@ -262,7 +268,10 @@ typedef enum {
                     }
                 }];
             } else {
-                [self.controller sendImage:image.name forConversation:self.controller.conversation file_data:[image TIFFRepresentation]];
+                if(_controller.attachmentsCount == 0)
+                    modal_caption_block();
+                else
+                    [self.controller sendImage:@"image" forConversation:self.controller.conversation file_data:[image TIFFRepresentation]];
             }
             
             
@@ -271,26 +280,45 @@ typedef enum {
             
         case PasteBoardItemTypeDocument:
         {
-            alert = [NSAlert alertWithMessageText:NSLocalizedString(@"Conversation.Confirm.SendThisFile", nil) informativeText:NSLocalizedString(@"Conversation.Confirm.SendThisFileDescription", nil) block:^(id result) {
-                if([result intValue] == 1000) {
-                    
-                    [self.controller sendDocument:path forConversation:self.controller.conversation];
-                    
-                }
-            }];
-            break;
+            
+            if(self.controller.conversation.type != DialogTypeSecretChat) {
+                modal_caption_block();
+                
+                break;
+            } else {
+                alert = [NSAlert alertWithMessageText:NSLocalizedString(@"Conversation.Confirm.SendThisFile", nil) informativeText:NSLocalizedString(@"Conversation.Confirm.SendThisFileDescription", nil) block:^(id result) {
+                    if([result intValue] == 1000) {
+                        
+                        [self.controller sendDocument:path forConversation:self.controller.conversation];
+                        
+                    }
+                }];
+                break;
+            }
+            
+            
+            
+            
         }
             
         case PasteBoardItemTypeVideo:
         {
-            alert = [NSAlert alertWithMessageText:NSLocalizedString(@"Conversation.Confirm.SendThisVideo", nil) informativeText:NSLocalizedString(@"Conversation.Confirm.SendThisVideoDescription", nil) block:^(id result) {
-                if([result intValue] == 1000) {
-                    
-                    [self.controller sendVideo:path forConversation:self.controller.conversation];
-                    
-                }
-            }];
-            break;
+            if(self.controller.conversation.type != DialogTypeSecretChat) {
+                TGSingleMediaSenderModalView *modalView = [[TGSingleMediaSenderModalView alloc] initWithFrame:NSZeroRect];
+                
+                modal_caption_block();
+                break;
+            } else {
+                alert = [NSAlert alertWithMessageText:NSLocalizedString(@"Conversation.Confirm.SendThisVideo", nil) informativeText:NSLocalizedString(@"Conversation.Confirm.SendThisVideoDescription", nil) block:^(id result) {
+                    if([result intValue] == 1000) {
+                        
+                        [self.controller sendVideo:path forConversation:self.controller.conversation];
+                        
+                    }
+                }];
+                break;
+            }
+
 
         }
         case PasteBoardItemTypeGif:
@@ -321,6 +349,11 @@ typedef enum {
     [alert show];
 }
 
+-(BOOL)becomeFirstResponder {
+    if([TMViewController isModalActive])
+        return NO;
+    return [super becomeFirstResponder];
+}
 
 -(void)setString:(NSString *)string {
     [_customMentions removeAllObjects];
@@ -499,7 +532,7 @@ typedef enum {
 -(void)insertText:(id)aString replacementRange:(NSRange)replacementRange {
     [super insertText:aString replacementRange:replacementRange];
     
-
+    
 }
 
 -(NSString *)realMentions:(NSMutableString *)string mentions:(NSMutableDictionary *)mentions idx:(int)idx {

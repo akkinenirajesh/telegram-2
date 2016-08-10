@@ -4,6 +4,7 @@
 #import "TGMediaContextTableView.h"
 #import "MessagesBottomView.h"
 #import "TGModernStickRowItem.h"
+#import "TGModernESGViewController.h"
 @interface TGGifKeyboardView () <TMSearchTextFieldDelegate> {
     __block SMDelayedBlockHandle _delayedBlockHandle;
 }
@@ -55,12 +56,10 @@
         
         if(strongSelf != nil) {
             
-            [strongSelf.messagesViewController.bottomView closeEmoji];
-            
+            [[TGModernESGViewController controller] forceClose];
             
             dispatch_after_seconds(0.1, ^{
                 
-                [strongSelf setHidden:YES];
                 
                 [strongSelf.messagesViewController sendFoundGif:[TL_messageMediaDocument createWithDocument:result.document caption:@""] forConversation:strongSelf.messagesViewController.conversation];
             });

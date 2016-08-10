@@ -11,8 +11,6 @@
 #import "Notification.h"
 #import "TLPeer+Extensions.h"
 #import "UploadOperation.h"
-#import "ImageCache.h"
-#import "ImageStorage.h"
 #import "ImageUtils.h"
 #import <QTKit/QTKit.h>
 #import "Crypto.h"
@@ -32,6 +30,9 @@
 #import "NSString+FindURLs.h"
 #import "TGLocationRequest.h"
 #import "TGContextMessagesvViewController.h"
+#import "TGEmbedModalView.h"
+#import "TGModernESGViewController.h"
+#import "TGModalArchivedPacks.h"
 @implementation MessageSender
 
 
@@ -260,13 +261,21 @@
         outMessage.replyMessage = replyMessage;
     }
     
-    template.autoSave = NO;
-    [template setReplyMessage:nil save:NO];    
-    [template saveForce];
-    [template saveTemplateInCloudIfNeeded];
-    [template performNotification];
-    template.autoSave = YES;
+    
+    [template setReplyMessage:nil save:YES];
 
+    if(message.length > 0) {
+        [[template updateSignalText:[[NSAttributedString alloc] init]] startWithNext:^(id next) {
+            if([next[0] boolValue] || replyMessage) {
+                [template saveTemplateInCloudIfNeeded];
+                [template performNotification];
+            }
+        }];
+    } else if(replyMessage) {
+        [template saveTemplateInCloudIfNeeded];
+        [template performNotification];
+    }
+    
     
     return  outMessage;
 }
@@ -542,6 +551,9 @@
                         });
                         
                     } else {
+                        
+                        [transaction setObject:@([[MTNetwork instance] getTime]) forKey:@"dt" inCollection:TOP_PEERS];
+                        
                         dispatch_async(dqueue, ^{
                             completeHandler(top);
                         });
@@ -802,24 +814,33 @@ static TGLocationRequest *locationRequest;
 
 
 
-+(RPCRequest *)proccessInlineKeyboardButton:(TLKeyboardButton *)keyboard messagesViewController:(MessagesViewController *)messagesViewController conversation:(TL_conversation *)conversation messageId:(int)messageId handler:(void (^)(TGInlineKeyboardProccessType type))handler {
++(RPCRequest *)proccessInlineKeyboardButton:(TLKeyboardButton *)keyboard messagesViewController:(MessagesViewController *)messagesViewController conversation:(TL_conversation *)conversation message:(TL_localMessage *)message handler:(void (^)(TGInlineKeyboardProccessType type))handler {
     
     
     if([keyboard isKindOfClass:[TL_keyboardButtonCallback class]]) {
         
         handler(TGInlineKeyboardProccessingType);
         
-        return [RPCRequest sendRequest:[TLAPI_messages_getBotCallbackAnswer createWithPeer:conversation.inputPeer msg_id:messageId data:keyboard.data] successHandler:^(id request, TL_messages_botCallbackAnswer *response) {
+        return [RPCRequest sendRequest:[TLAPI_messages_getBotCallbackAnswer createWithPeer:conversation.inputPeer msg_id:message.n_id data:keyboard.data] successHandler:^(id request, TL_messages_botCallbackAnswer *response) {
             
             if([response isKindOfClass:[TL_messages_botCallbackAnswer class]] && response.message.length > 0) {
                 if(response.isAlert)
                     alert(appName(), response.message);
                 else
                     if(response.message.length > 0)
-                        [Notification perform:SHOW_ALERT_HINT_VIEW data:@{@"text":response.message,@"color":NSColorFromRGB(0x4ba3e2)}];
+                        [Notification perform:SHOW_ALERT_HINT_VIEW data:@{@"text":response.message,@"color":BLUE_COLOR}];
+            } else if([response isKindOfClass:[TL_messages_botCallbackAnswer class]] && response.url.length > 0) {
+               
+             //   open_link(response.url);
+                
+                TGEmbedModalView *embedModal = [[TGEmbedModalView alloc] init];
+                
+                [embedModal setWebpage:[TL_webPage createWithFlags:0 n_id:0 url:response.url display_url:response.url type:nil site_name:nil title:nil n_description:nil photo:nil embed_url:response.url embed_type:@"callback" embed_width:INT32_MAX embed_height:INT32_MAX duration:0 author:nil document:nil]];
+                
+                [embedModal show:appWindow() animated:YES];
             }
             
-                handler(TGInlineKeyboardSuccessType);
+            handler(TGInlineKeyboardSuccessType);
             
             
         } errorHandler:^(id request, RpcError *error) {
@@ -898,7 +919,7 @@ static TGLocationRequest *locationRequest;
             
             [m.contextModalView didNeedCloseAndSwitch:keyboard];
         } else {
-            [[Telegram rightViewController] showInlineBotSwitchModalView:conversation.user keyboard:keyboard];
+            [[Telegram rightViewController] showInlineBotSwitchModalView:message.via_bot_id != 0 ? message.via_bot_user : message.fromUser keyboard:keyboard];
         }
         
     }
@@ -906,6 +927,167 @@ static TGLocationRequest *locationRequest;
     return nil;
 }
 
++(SSignal *)addStickerPack:(TL_messages_stickerSet *)pack {
+    
+    return [[SSignal alloc] initWithGenerator:^id<SDisposable>(SSubscriber * subscriber) {
+        
+         RPCRequest *request = [RPCRequest sendRequest:[TLAPI_messages_installStickerSet createWithStickerset:[TL_inputStickerSetID createWithN_id:pack.set.n_id access_hash:pack.set.access_hash] archived:NO] successHandler:^(id request, TLmessages_StickerSetInstallResult *response) {
+            
+             
+             NSMutableArray<TL_stickerSetCovered *> *copysets = [response.sets mutableCopy];
+            
+            [[Storage yap] readWriteWithBlock:^(YapDatabaseReadWriteTransaction * _Nonnull transaction) {
+                
+                NSDictionary *info  = [transaction objectForKey:@"modern_stickers" inCollection:STICKERS_COLLECTION];
+                
+                NSMutableDictionary *stickers = info[@"serialized"];
+                
+                
+                NSMutableArray *sets = info[@"sets"];
+                
+                [sets addObject:pack.set];
+                stickers[@(pack.set.n_id)] = pack.documents;
+                
+                
+                if([response isKindOfClass:[TL_messages_stickerSetInstallResultArchive class]]) {
+                    
+                    [response.sets enumerateObjectsUsingBlock:^(TL_stickerSetCovered *obj, NSUInteger idx, BOOL * _Nonnull stop) {
+                        [stickers removeObjectForKey:@(obj.set.n_id)];
+                    }];
+                    
+                    NSMutableArray *removed = [NSMutableArray array];
+                    
+                    [sets enumerateObjectsWithOptions:NSEnumerationReverse usingBlock:^(TL_stickerSet *obj, NSUInteger idx, BOOL * _Nonnull stop) {
+                        
+                        __block TLStickerSet * changedSet = nil;
+                        
+                        [response.sets enumerateObjectsUsingBlock:^(TL_stickerSetCovered * archived, NSUInteger idx, BOOL * _Nonnull stop) {
+                            if(obj.n_id == archived.set.n_id) {
+                            
+                                changedSet = archived.set;
+                                [removed addObject:obj];
+                            }
+                        }];
+                        
+                        if(changedSet) {
+                            [response.sets removeObject:changedSet];
+                            
+                            *stop = response.sets.count == 0;
+                        }
+                        
+                    }];
+                    
+                    [sets removeObjectsInArray:removed];
+                    
+                }
+                
+                [transaction setObject:info forKey:@"modern_stickers" inCollection:STICKERS_COLLECTION];
+                
+            }];
+             
+             
+             [ASQueue dispatchOnMainQueue:^{
+                 if([response isKindOfClass:[TL_messages_stickerSetInstallResultArchive class]]) {
+                     [Notification perform:ARCHIVE_STICKERS_CHANGED data:@{KEY_STICKERSET:copysets}];
+                     
+                     [TMViewController hideModalProgress];
+                     
+                     TGModalArchivedPacks *archived = [[TGModalArchivedPacks alloc] initWithFrame:NSZeroRect];
+                     [archived show:appWindow() animated:YES sets:copysets];
+                 } else {
+                     [TMViewController hideModalProgressWithSuccess];
+                 }
+             }];
+             
+             
+             
+            
+            [TGModernESGViewController reloadStickers];
+            
+            [subscriber putNext:@(YES)];
+            
+        } errorHandler:^(id request, RpcError *error) {
+            [TMViewController hideModalProgress];
+            
+            [subscriber putNext:@(NO)];
+        } timeout:10];
+        
+        
+        return [[SBlockDisposable alloc] initWithBlock:^{
+            [request cancelRequest];
+        }];
+    }];
+    
+    
+
+}
+
++(void)addRecentSticker:(TLDocument *)sticker {
+    [[Storage yap] asyncReadWriteWithBlock:^(YapDatabaseReadWriteTransaction *transaction) {
+        
+        
+        NSMutableArray *sc = [transaction objectForKey:@"remoteRecentStickers" inCollection:STICKERS_COLLECTION];
+        
+        if(!sc) {
+            sc = [NSMutableArray array];
+        }
+        
+        __block TLDocument *hasSticker = sticker;
+        
+        [sc enumerateObjectsUsingBlock:^(TLDocument *obj, NSUInteger idx, BOOL * _Nonnull stop) {
+            if(obj.n_id == sticker.n_id) {
+                hasSticker = obj;
+                *stop = YES;
+            }
+        }];
+        
+        if([sc indexOfObject:hasSticker] != NSNotFound) {
+            [sc removeObject:hasSticker];
+        }
+        
+        [sc insertObject:hasSticker atIndex:0];
+        
+        [transaction setObject:sc forKey:@"remoteRecentStickers" inCollection:STICKERS_COLLECTION];
+        
+        [Notification perform:STICKERS_REORDER data:@{}];
+        
+        
+        //        NSMutableDictionary *sc = [transaction objectForKey:@"recentStickers" inCollection:STICKERS_COLLECTION];
+        //
+        //        if(!sc)
+        //        {
+        //            sc = [[NSMutableDictionary alloc] init];
+        //        }
+        //
+        //        TL_documentAttributeSticker *attr = (TL_documentAttributeSticker *) [sticker attributeWithClass:[TL_documentAttributeSticker class]];
+        //
+        //
+        //        if(!sc[@(attr.stickerset.n_id)]) {
+        //            sc[@(attr.stickerset.n_id)] = [NSMutableDictionary dictionary];
+        //        }
+        //
+        //        __block int max = 1;
+        //
+        //        [sc enumerateKeysAndObjectsUsingBlock:^(id  _Nonnull key, NSMutableDictionary *obj, BOOL * _Nonnull stop) {
+        //
+        //            [obj enumerateKeysAndObjectsUsingBlock:^(id  _Nonnull key, NSNumber *value, BOOL * _Nonnull stop) {
+        //
+        //                max = MAX(max,[value intValue]);
+        //
+        //            }];
+        //
+        //        }];
+        //
+        //        max++;
+        //
+        //
+        //        sc[@(attr.stickerset.n_id)][@(sticker.n_id)] = @(max);
+        //
+        //        [transaction setObject:sc forKey:@"recentStickers" inCollection:STICKERS_COLLECTION];
+        
+    }];
+    
+}
 
 
 +(void)drop {

@@ -10,7 +10,7 @@
 #import "TLPeer+Extensions.h"
 #import "TGPasslock.h"
 #import "TL_localMessage.h"
-
+#import "TGInputMessageTemplate.h"
 @interface TL_conversation ()
 @property (nonatomic,strong,readonly) TLUser *p_user;
 @property (nonatomic,strong,readonly) TLChat *p_chat;
@@ -104,14 +104,14 @@
     }
     
     if(self.type == DialogTypeChat) {
-        return !(self.chat.type != TLChatTypeNormal || self.chat.left || self.chat.isDeactivated);
+        return !(self.chat.type != TLChatTypeNormal || self.chat.isLeft || self.chat.isDeactivated);
     }
     
     if(self.type == DialogTypeUser && self.user.isBot)
         return  !self.user.isBot || !self.user.isBlocked;
     
     if(self.type == DialogTypeChannel)
-        return ((!self.chat.isBroadcast && !self.isInvisibleChannel) || self.chat.isCreator || self.chat.isEditor) && !self.chat.isKicked && !self.chat.left && self.chat.type == TLChatTypeNormal;
+        return ((!self.chat.isBroadcast && !self.isInvisibleChannel) || self.chat.isCreator || self.chat.isEditor) && !self.chat.isKicked && !self.chat.isLeft && self.chat.type == TLChatTypeNormal;
     
     if(self.type == DialogTypeUser)
         return !self.user.isBlocked;
@@ -157,7 +157,7 @@
                 return NSLocalizedString(@"Conversation.Action.Join", nil);
             }
             
-            if(self.chat.isKicked || self.chat.left || self.chat.type == TLChatTypeForbidden) {
+            if(self.chat.isKicked || self.chat.isLeft || self.chat.type == TLChatTypeForbidden) {
                 return NSLocalizedString(@"Conversation.DeleteAndExit", nil);
             }
             
@@ -177,7 +177,7 @@
         }
         
         
-        if(self.chat.left) {
+        if(self.chat.isLeft) {
             return NSLocalizedString(@"Conversation.Action.YouLeftGroup", nil);
         }
         
@@ -490,5 +490,14 @@ static void *kType;
 -(void)setPts:(int)pts {
     [super setPts:pts];
 }
+
+-(TGInputMessageTemplate *)inputTemplate {
+    return [TGInputMessageTemplate templateWithType:TGInputMessageTemplateTypeSimpleText ofPeerId:self.peer_id];
+}
+
+-(void)setRead_outbox_max_id:(int)read_outbox_max_id {
+    [super setRead_outbox_max_id:read_outbox_max_id];
+}
+
 
 @end

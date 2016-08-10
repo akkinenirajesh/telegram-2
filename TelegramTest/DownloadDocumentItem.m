@@ -8,7 +8,6 @@
 
 #import "DownloadDocumentItem.h"
 #import "FileUtils.h"
-#import "ImageCache.h"
 #import <AVFoundation/AVFoundation.h>
 #import "MessageTableItemAudioDocument.h"
 @implementation DownloadDocumentItem
@@ -61,7 +60,7 @@
     if(self.isEncrypted)
         return [TL_inputEncryptedFileLocation createWithN_id:self.document.n_id access_hash:self.document.access_hash];
     
-    return [TL_inputDocumentFileLocation createWithN_id:self.document.n_id access_hash:self.document.access_hash];
+    return [TL_inputDocumentFileLocation createWithN_id:self.document.n_id access_hash:self.document.access_hash version:self.document.version];
 }
 
 @end

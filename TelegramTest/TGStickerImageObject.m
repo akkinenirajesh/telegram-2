@@ -55,14 +55,16 @@
         [TGImageObject.threadPool addTask:[[SThreadPoolTask alloc] initWithBlock:^(bool (^canceled)()) {
             
             strongWeak();
-            
-            if(strongSelf == weakSelf) {
-                weakSelf.isLoaded = YES;
-                [weakSelf _didDownloadImage:item];
-                weakSelf.downloadItem = nil;
-                weakSelf.downloadListener = nil;
+            @try {
+                if(strongSelf == weakSelf) {
+                    weakSelf.isLoaded = YES;
+                    [weakSelf _didDownloadImage:item];
+                    weakSelf.downloadItem = nil;
+                    weakSelf.downloadListener = nil;
+                }
+            } @catch (NSException *exception) {
+                
             }
-            
         }]];
           
     }];
@@ -95,7 +97,7 @@
     }
    
     
-    [[ASQueue mainQueue] dispatchOnQueue:^{
+    [ASQueue dispatchOnMainQueue:^{
         [self.delegate didDownloadImage:image object:self];
     }];
 }

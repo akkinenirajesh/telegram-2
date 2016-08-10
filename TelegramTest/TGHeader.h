@@ -102,11 +102,13 @@ __attribute__((weak_import,deprecated("API newer than Deployment Target.")))
 #define DIALOG_BORDER_COLOR NSColorFromRGB(0xeaeaea)
 #define DIALOG_BORDER_WIDTH 1
 #define BLUE_COLOR_SELECT NSColorFromRGB(0x4c91c7)
+#define BLUE_COLOR NSColorFromRGB(0x4ba3e2)
 #define GRAY_BORDER_COLOR NSColorFromRGB(0xe4e4e4)
 #define LIGHT_GRAY_BORDER_COLOR NSColorFromRGB(0xededed)
 #define LINK_COLOR BLUE_UI_COLOR
 #define BLUE_SEPARATOR_COLOR NSColorFromRGB(0x66A7DB)
 #define MIN_IMG_SIZE NSMakeSize(320,40)
+#define RED_COLOR NSColorFromRGB(0xee6363)
 
 #define weak() __weak typeof(self) weakSelf = self;
 #define strongWeak() __block __typeof(&*self)strongSelf = weakSelf;

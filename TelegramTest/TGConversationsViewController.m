@@ -8,7 +8,6 @@
 
 #import "TGConversationsViewController.h"
 #import "TGSecretAction.h"
-#import "SearchViewController.h"
 #import "SelfDestructionController.h"
 #import "TGModernTypingManager.h"
 #import "TGPasslock.h"
@@ -23,6 +22,7 @@
 #import "TMAudioRecorder.h"
 #import "MessagesBottomView.h"
 #import "TGModernESGViewController.h"
+#import "SpacemanBlocks.h"
 @interface TestView : TMView
 
 @end
@@ -35,12 +35,16 @@
 
 @end
 
-@interface TGConversationsViewController ()<NSTableViewDataSource,NSTableViewDelegate,TMTableViewDelegate,TGModernConversationHistoryControllerDelegate>
+@interface TGConversationsViewController ()<NSTableViewDataSource,NSTableViewDelegate,TMTableViewDelegate,TGModernConversationHistoryControllerDelegate> {
+    SMDelayedBlockHandle _handle;
+}
 @property (nonatomic, strong) TGModernConversationHistoryController *modernHistory;
 @property (nonatomic, strong) TGConversationsTableView *tableView;
 @property (nonatomic, strong) NSMutableArray *list;
 
 @property (nonatomic,assign) BOOL initedNext;
+
+
 
 @end
 
@@ -54,7 +58,7 @@
     
     int topOffset = 48;
     
-    self.searchViewController.type = SearchTypeDialogs | SearchTypeMessages | SearchTypeContacts | SearchTypeGlobalUsers;
+    self.searchViewController.type = TGModernSearchTypeDialogs  | TGModernSearchTypeGlobalUsers | TGModernSearchTypeMessages;
     
     NSRect tableRect = NSMakeRect(0, 0, NSWidth(self.view.frame), NSHeight(self.view.frame) - topOffset);
     
@@ -74,6 +78,8 @@
     [Notification addObserver:self selector:@selector(notificationDialogRemove:) name:DIALOG_DELETE];
     [Notification addObserver:self selector:@selector(notificationDialogChangePosition:) name:DIALOG_MOVE_POSITION];
     [Notification addObserver:self selector:@selector(notificationDialogSelectionChanged:) name:@"ChangeDialogSelection"];
+    
+    [Notification addObserver:self selector:@selector(notificationFlushAndReloadDialogs:) name:DIALOGS_FLUSH_AND_RELOAD];
     [self addScrollEvent];
     
     
@@ -92,7 +98,7 @@
     
     [[Storage manager] users:^(NSArray *result) {
         
-        [[UsersManager sharedManager] addFromDB:result];
+        [[UsersManager sharedManager] add:result];
         
         [[Storage manager] broadcastList:^(NSArray *broadcasts) {
             
@@ -124,8 +130,8 @@
     
     [self.searchViewController viewWillAppear:animated];
     
-    [self.tableView.scrollView.contentView setFrameSize:[Telegram leftViewController].view.frame.size];
-    [self.tableView setFrameSize:[Telegram leftViewController].view.frame.size];
+    //[self.tableView.scrollView.contentView setFrameSize:[Telegram leftViewController].view.frame.size];
+    //[self.tableView setFrameSize:[Telegram leftViewController].view.frame.size];
   //  dispatch_async(dispatch_get_main_queue(), ^{
         [self.tableView reloadData];
   //  });
@@ -149,8 +155,6 @@
 -(void)initConversations {
     
     
-    
-   
     _initedNext = NO;
     
      [[MTNetwork instance] startNetwork];
@@ -161,6 +165,14 @@
     [self loadhistory:30];
     
 
+    
+}
+
+-(void)notificationFlushAndReloadDialogs:(NSNotification *)notification {
+    [self.tableView removeAllItems:NO];
+    [self.tableView reloadData];
+    
+    [self initialize];
     
 }
 
@@ -184,7 +196,8 @@
     
     [ASQueue dispatchOnMainQueue:^{
         //[EmojiViewController reloadStickers];
-        //[TGModernEmojiViewController initialize];
+        [TGModernESGViewController controller];
+        [TGModernESGViewController reloadStickers];
         [TGModernESGViewController controller];
         [MessageSender syncTopCategories:^(NSArray *categories) {
         }];
@@ -225,12 +238,16 @@
 
 -(void)loadhistory:(int)limit  {
     
+    cancel_delayed_block(_handle);
+    
     if(_modernHistory != nil) {
         [_modernHistory requestNextConversation];
         
-        dispatch_after_seconds(5, ^{
+        _handle = perform_block_after_delay(5.0, ^{
             [self loadhistory:limit];
         });
+        
+       
     }
     
 }
@@ -263,6 +280,8 @@
                 [self.tableView setSelectedByHash:[self.selectedItem hash]];
             }
         }
+        
+
     }];
     
 }
@@ -354,7 +373,7 @@
             [self.tableView insert:items startIndex:0 tableRedraw:NO];
             [self.tableView reloadData];
             
-            [self.tableView setSelectedByHash:self.tableView.selectedItem.hash];
+            [self.tableView setSelectedByHash:[self.tableView.selectedItem hash]];
             
         }];
     }];
@@ -559,7 +578,7 @@
             
         }
         
-        if(chat.type != TLChatTypeNormal || chat.left)
+        if(chat.type != TLChatTypeNormal || chat.isLeft)
             showСhatProfile.target = nil;
         
         [menu addItem:showСhatProfile];
@@ -584,7 +603,7 @@
             [menu addItem:deleteAndExitItem];
             
             if(dialog.type == DialogTypeChat) {
-                NSMenuItem *leaveFromGroupItem = [NSMenuItem menuItemWithTitle:!dialog.chat.left ? NSLocalizedString(@"Conversation.Actions.LeaveGroup", nil) : NSLocalizedString(@"Conversation.Actions.ReturnToGroup", nil) withBlock:^(id sender) {
+                NSMenuItem *leaveFromGroupItem = [NSMenuItem menuItemWithTitle:!dialog.chat.isLeft ? NSLocalizedString(@"Conversation.Actions.LeaveGroup", nil) : NSLocalizedString(@"Conversation.Actions.ReturnToGroup", nil) withBlock:^(id sender) {
                     [[Telegram rightViewController].messagesViewController leaveOrReturn:dialog];
                 }];
                 if(chat.type != TLChatTypeNormal)

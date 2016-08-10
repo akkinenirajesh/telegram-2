@@ -2,7 +2,7 @@
 //  MTProto.m
 //  Telegram
 //
-//  Auto created by Mikhail Filimonov on 03.06.16.
+//  Auto created by Mikhail Filimonov on 27.07.16.
 //  Copyright (c) 2013 Telegram for OS X. All rights reserved.
 //
 
@@ -1653,19 +1653,22 @@
 @end
 
 @implementation TL_inputDocumentFileLocation
-+(TL_inputDocumentFileLocation*)createWithN_id:(long)n_id access_hash:(long)access_hash {
++(TL_inputDocumentFileLocation*)createWithN_id:(long)n_id access_hash:(long)access_hash version:(int)version {
 	TL_inputDocumentFileLocation* obj = [[TL_inputDocumentFileLocation alloc] init];
 	obj.n_id = n_id;
 	obj.access_hash = access_hash;
+	obj.version = version;
 	return obj;
 }
 -(void)serialize:(SerializedData*)stream {
 	[stream writeLong:self.n_id];
 	[stream writeLong:self.access_hash];
+	[stream writeInt:self.version];
 }
 -(void)unserialize:(SerializedData*)stream {
 	super.n_id = [stream readLong];
 	super.access_hash = [stream readLong];
+	super.version = [stream readInt];
 }
         
 -(TL_inputDocumentFileLocation *)copy {
@@ -1674,6 +1677,7 @@
     
     objc.n_id = self.n_id;
     objc.access_hash = self.access_hash;
+    objc.version = self.version;
     
     return objc;
 }
@@ -4081,14 +4085,13 @@
 @end
 
 @implementation TL_chat_old34
-+(TL_chat_old34*)createWithN_id:(int)n_id title:(NSString*)title photo:(TLChatPhoto*)photo participants_count:(int)participants_count date:(int)date left:(Boolean)left version:(int)version {
++(TL_chat_old34*)createWithN_id:(int)n_id title:(NSString*)title photo:(TLChatPhoto*)photo participants_count:(int)participants_count date:(int)date version:(int)version {
 	TL_chat_old34* obj = [[TL_chat_old34 alloc] init];
 	obj.n_id = n_id;
 	obj.title = title;
 	obj.photo = photo;
 	obj.participants_count = participants_count;
 	obj.date = date;
-	obj.left = left;
 	obj.version = version;
 	return obj;
 }
@@ -4098,7 +4101,6 @@
 	[ClassStore TLSerialize:self.photo stream:stream];
 	[stream writeInt:self.participants_count];
 	[stream writeInt:self.date];
-	[stream writeBool:self.left];
 	[stream writeInt:self.version];
 }
 -(void)unserialize:(SerializedData*)stream {
@@ -4107,7 +4109,6 @@
 	self.photo = [ClassStore TLDeserialize:stream];
 	super.participants_count = [stream readInt];
 	super.date = [stream readInt];
-	super.left = [stream readBool];
 	super.version = [stream readInt];
 }
         
@@ -4120,7 +4121,6 @@
     objc.photo = [self.photo copy];
     objc.participants_count = self.participants_count;
     objc.date = self.date;
-    objc.left = self.left;
     objc.version = self.version;
     
     return objc;
@@ -13415,6 +13415,88 @@
         
 @end
 
+@implementation TL_updateReadFeaturedStickers
++(TL_updateReadFeaturedStickers*)create {
+	TL_updateReadFeaturedStickers* obj = [[TL_updateReadFeaturedStickers alloc] init];
+	
+	return obj;
+}
+-(void)serialize:(SerializedData*)stream {
+	
+}
+-(void)unserialize:(SerializedData*)stream {
+	
+}
+        
+-(TL_updateReadFeaturedStickers *)copy {
+    
+    TL_updateReadFeaturedStickers *objc = [[TL_updateReadFeaturedStickers alloc] init];
+    
+    
+    
+    return objc;
+}
+        
+
+    
+-(id)initWithCoder:(NSCoder *)aDecoder {
+
+    if((self = [ClassStore deserialize:[aDecoder decodeObjectForKey:@"data"]])) {
+        
+    }
+    
+    return self;
+}
+        
+-(void)encodeWithCoder:(NSCoder *)aCoder {
+    [aCoder encodeObject:[ClassStore serialize:self] forKey:@"data"];
+}
+        
+
+        
+@end
+
+@implementation TL_updateRecentStickers
++(TL_updateRecentStickers*)create {
+	TL_updateRecentStickers* obj = [[TL_updateRecentStickers alloc] init];
+	
+	return obj;
+}
+-(void)serialize:(SerializedData*)stream {
+	
+}
+-(void)unserialize:(SerializedData*)stream {
+	
+}
+        
+-(TL_updateRecentStickers *)copy {
+    
+    TL_updateRecentStickers *objc = [[TL_updateRecentStickers alloc] init];
+    
+    
+    
+    return objc;
+}
+        
+
+    
+-(id)initWithCoder:(NSCoder *)aDecoder {
+
+    if((self = [ClassStore deserialize:[aDecoder decodeObjectForKey:@"data"]])) {
+        
+    }
+    
+    return self;
+}
+        
+-(void)encodeWithCoder:(NSCoder *)aCoder {
+    [aCoder encodeObject:[ClassStore serialize:self] forKey:@"data"];
+}
+        
+
+        
+@end
+
 @implementation TLupdates_State
 
 @end
@@ -15022,8 +15104,177 @@
 @end
         
 @implementation TL_config
-+(TL_config*)createWithDate:(int)date expires:(int)expires test_mode:(Boolean)test_mode this_dc:(int)this_dc dc_options:(NSMutableArray*)dc_options chat_size_max:(int)chat_size_max megagroup_size_max:(int)megagroup_size_max forwarded_count_max:(int)forwarded_count_max online_update_period_ms:(int)online_update_period_ms offline_blur_timeout_ms:(int)offline_blur_timeout_ms offline_idle_timeout_ms:(int)offline_idle_timeout_ms online_cloud_timeout_ms:(int)online_cloud_timeout_ms notify_cloud_delay_ms:(int)notify_cloud_delay_ms notify_default_delay_ms:(int)notify_default_delay_ms chat_big_size:(int)chat_big_size push_chat_period_ms:(int)push_chat_period_ms push_chat_limit:(int)push_chat_limit saved_gifs_limit:(int)saved_gifs_limit edit_time_limit:(int)edit_time_limit rating_e_decay:(int)rating_e_decay disabled_features:(NSMutableArray*)disabled_features {
++(TL_config*)createWithDate:(int)date expires:(int)expires test_mode:(Boolean)test_mode this_dc:(int)this_dc dc_options:(NSMutableArray*)dc_options chat_size_max:(int)chat_size_max megagroup_size_max:(int)megagroup_size_max forwarded_count_max:(int)forwarded_count_max online_update_period_ms:(int)online_update_period_ms offline_blur_timeout_ms:(int)offline_blur_timeout_ms offline_idle_timeout_ms:(int)offline_idle_timeout_ms online_cloud_timeout_ms:(int)online_cloud_timeout_ms notify_cloud_delay_ms:(int)notify_cloud_delay_ms notify_default_delay_ms:(int)notify_default_delay_ms chat_big_size:(int)chat_big_size push_chat_period_ms:(int)push_chat_period_ms push_chat_limit:(int)push_chat_limit saved_gifs_limit:(int)saved_gifs_limit edit_time_limit:(int)edit_time_limit rating_e_decay:(int)rating_e_decay stickers_recent_limit:(int)stickers_recent_limit disabled_features:(NSMutableArray*)disabled_features {
 	TL_config* obj = [[TL_config alloc] init];
+	obj.date = date;
+	obj.expires = expires;
+	obj.test_mode = test_mode;
+	obj.this_dc = this_dc;
+	obj.dc_options = dc_options;
+	obj.chat_size_max = chat_size_max;
+	obj.megagroup_size_max = megagroup_size_max;
+	obj.forwarded_count_max = forwarded_count_max;
+	obj.online_update_period_ms = online_update_period_ms;
+	obj.offline_blur_timeout_ms = offline_blur_timeout_ms;
+	obj.offline_idle_timeout_ms = offline_idle_timeout_ms;
+	obj.online_cloud_timeout_ms = online_cloud_timeout_ms;
+	obj.notify_cloud_delay_ms = notify_cloud_delay_ms;
+	obj.notify_default_delay_ms = notify_default_delay_ms;
+	obj.chat_big_size = chat_big_size;
+	obj.push_chat_period_ms = push_chat_period_ms;
+	obj.push_chat_limit = push_chat_limit;
+	obj.saved_gifs_limit = saved_gifs_limit;
+	obj.edit_time_limit = edit_time_limit;
+	obj.rating_e_decay = rating_e_decay;
+	obj.stickers_recent_limit = stickers_recent_limit;
+	obj.disabled_features = disabled_features;
+	return obj;
+}
+-(void)serialize:(SerializedData*)stream {
+	[stream writeInt:self.date];
+	[stream writeInt:self.expires];
+	[stream writeBool:self.test_mode];
+	[stream writeInt:self.this_dc];
+	//Serialize FullVector
+	[stream writeInt:0x1cb5c415];
+	{
+		NSInteger tl_count = [self.dc_options count];
+		[stream writeInt:(int)tl_count];
+		for(int i = 0; i < (int)tl_count; i++) {
+            TLDcOption* obj = [self.dc_options objectAtIndex:i];
+            [ClassStore TLSerialize:obj stream:stream];
+		}
+	}
+	[stream writeInt:self.chat_size_max];
+	[stream writeInt:self.megagroup_size_max];
+	[stream writeInt:self.forwarded_count_max];
+	[stream writeInt:self.online_update_period_ms];
+	[stream writeInt:self.offline_blur_timeout_ms];
+	[stream writeInt:self.offline_idle_timeout_ms];
+	[stream writeInt:self.online_cloud_timeout_ms];
+	[stream writeInt:self.notify_cloud_delay_ms];
+	[stream writeInt:self.notify_default_delay_ms];
+	[stream writeInt:self.chat_big_size];
+	[stream writeInt:self.push_chat_period_ms];
+	[stream writeInt:self.push_chat_limit];
+	[stream writeInt:self.saved_gifs_limit];
+	[stream writeInt:self.edit_time_limit];
+	[stream writeInt:self.rating_e_decay];
+	[stream writeInt:self.stickers_recent_limit];
+	//Serialize FullVector
+	[stream writeInt:0x1cb5c415];
+	{
+		NSInteger tl_count = [self.disabled_features count];
+		[stream writeInt:(int)tl_count];
+		for(int i = 0; i < (int)tl_count; i++) {
+            TLDisabledFeature* obj = [self.disabled_features objectAtIndex:i];
+            [ClassStore TLSerialize:obj stream:stream];
+		}
+	}
+}
+-(void)unserialize:(SerializedData*)stream {
+	super.date = [stream readInt];
+	super.expires = [stream readInt];
+	super.test_mode = [stream readBool];
+	super.this_dc = [stream readInt];
+	//UNS FullVector
+	[stream readInt];
+	{
+		if(!self.dc_options)
+			self.dc_options = [[NSMutableArray alloc] init];
+		int count = [stream readInt];
+		for(int i = 0; i < count; i++) {
+			TLDcOption* obj = [ClassStore TLDeserialize:stream];
+            if(obj != nil && [obj isKindOfClass:[TLDcOption class]])
+                 [self.dc_options addObject:obj];
+            else
+                break;
+		}
+	}
+	super.chat_size_max = [stream readInt];
+	super.megagroup_size_max = [stream readInt];
+	super.forwarded_count_max = [stream readInt];
+	super.online_update_period_ms = [stream readInt];
+	super.offline_blur_timeout_ms = [stream readInt];
+	super.offline_idle_timeout_ms = [stream readInt];
+	super.online_cloud_timeout_ms = [stream readInt];
+	super.notify_cloud_delay_ms = [stream readInt];
+	super.notify_default_delay_ms = [stream readInt];
+	super.chat_big_size = [stream readInt];
+	super.push_chat_period_ms = [stream readInt];
+	super.push_chat_limit = [stream readInt];
+	super.saved_gifs_limit = [stream readInt];
+	super.edit_time_limit = [stream readInt];
+	super.rating_e_decay = [stream readInt];
+	super.stickers_recent_limit = [stream readInt];
+	//UNS FullVector
+	[stream readInt];
+	{
+		if(!self.disabled_features)
+			self.disabled_features = [[NSMutableArray alloc] init];
+		int count = [stream readInt];
+		for(int i = 0; i < count; i++) {
+			TLDisabledFeature* obj = [ClassStore TLDeserialize:stream];
+            if(obj != nil && [obj isKindOfClass:[TLDisabledFeature class]])
+                 [self.disabled_features addObject:obj];
+            else
+                break;
+		}
+	}
+}
+        
+-(TL_config *)copy {
+    
+    TL_config *objc = [[TL_config alloc] init];
+    
+    objc.date = self.date;
+    objc.expires = self.expires;
+    objc.test_mode = self.test_mode;
+    objc.this_dc = self.this_dc;
+    objc.dc_options = [self.dc_options copy];
+    objc.chat_size_max = self.chat_size_max;
+    objc.megagroup_size_max = self.megagroup_size_max;
+    objc.forwarded_count_max = self.forwarded_count_max;
+    objc.online_update_period_ms = self.online_update_period_ms;
+    objc.offline_blur_timeout_ms = self.offline_blur_timeout_ms;
+    objc.offline_idle_timeout_ms = self.offline_idle_timeout_ms;
+    objc.online_cloud_timeout_ms = self.online_cloud_timeout_ms;
+    objc.notify_cloud_delay_ms = self.notify_cloud_delay_ms;
+    objc.notify_default_delay_ms = self.notify_default_delay_ms;
+    objc.chat_big_size = self.chat_big_size;
+    objc.push_chat_period_ms = self.push_chat_period_ms;
+    objc.push_chat_limit = self.push_chat_limit;
+    objc.saved_gifs_limit = self.saved_gifs_limit;
+    objc.edit_time_limit = self.edit_time_limit;
+    objc.rating_e_decay = self.rating_e_decay;
+    objc.stickers_recent_limit = self.stickers_recent_limit;
+    objc.disabled_features = [self.disabled_features copy];
+    
+    return objc;
+}
+        
+
+    
+-(id)initWithCoder:(NSCoder *)aDecoder {
+
+    if((self = [ClassStore deserialize:[aDecoder decodeObjectForKey:@"data"]])) {
+        
+    }
+    
+    return self;
+}
+        
+-(void)encodeWithCoder:(NSCoder *)aCoder {
+    [aCoder encodeObject:[ClassStore serialize:self] forKey:@"data"];
+}
+        
+
+        
+@end
+
+@implementation TL_config_old53
++(TL_config_old53*)createWithDate:(int)date expires:(int)expires test_mode:(Boolean)test_mode this_dc:(int)this_dc dc_options:(NSMutableArray*)dc_options chat_size_max:(int)chat_size_max megagroup_size_max:(int)megagroup_size_max forwarded_count_max:(int)forwarded_count_max online_update_period_ms:(int)online_update_period_ms offline_blur_timeout_ms:(int)offline_blur_timeout_ms offline_idle_timeout_ms:(int)offline_idle_timeout_ms online_cloud_timeout_ms:(int)online_cloud_timeout_ms notify_cloud_delay_ms:(int)notify_cloud_delay_ms notify_default_delay_ms:(int)notify_default_delay_ms chat_big_size:(int)chat_big_size push_chat_period_ms:(int)push_chat_period_ms push_chat_limit:(int)push_chat_limit saved_gifs_limit:(int)saved_gifs_limit edit_time_limit:(int)edit_time_limit rating_e_decay:(int)rating_e_decay disabled_features:(NSMutableArray*)disabled_features {
+	TL_config_old53* obj = [[TL_config_old53 alloc] init];
 	obj.date = date;
 	obj.expires = expires;
 	obj.test_mode = test_mode;
@@ -15138,9 +15389,9 @@
 	}
 }
         
--(TL_config *)copy {
+-(TL_config_old53 *)copy {
     
-    TL_config *objc = [[TL_config alloc] init];
+    TL_config_old53 *objc = [[TL_config_old53 alloc] init];
     
     objc.date = self.date;
     objc.expires = self.expires;
@@ -16432,7 +16683,7 @@
 @end
 
 @implementation TL_document
-+(TL_document*)createWithN_id:(long)n_id access_hash:(long)access_hash date:(int)date mime_type:(NSString*)mime_type size:(int)size thumb:(TLPhotoSize*)thumb dc_id:(int)dc_id attributes:(NSMutableArray*)attributes {
++(TL_document*)createWithN_id:(long)n_id access_hash:(long)access_hash date:(int)date mime_type:(NSString*)mime_type size:(int)size thumb:(TLPhotoSize*)thumb dc_id:(int)dc_id version:(int)version attributes:(NSMutableArray*)attributes {
 	TL_document* obj = [[TL_document alloc] init];
 	obj.n_id = n_id;
 	obj.access_hash = access_hash;
@@ -16441,6 +16692,7 @@
 	obj.size = size;
 	obj.thumb = thumb;
 	obj.dc_id = dc_id;
+	obj.version = version;
 	obj.attributes = attributes;
 	return obj;
 }
@@ -16452,6 +16704,7 @@
 	[stream writeInt:self.size];
 	[ClassStore TLSerialize:self.thumb stream:stream];
 	[stream writeInt:self.dc_id];
+	[stream writeInt:self.version];
 	//Serialize FullVector
 	[stream writeInt:0x1cb5c415];
 	{
@@ -16471,6 +16724,7 @@
 	super.size = [stream readInt];
 	self.thumb = [ClassStore TLDeserialize:stream];
 	super.dc_id = [stream readInt];
+	super.version = [stream readInt];
 	//UNS FullVector
 	[stream readInt];
 	{
@@ -16498,6 +16752,7 @@
     objc.size = self.size;
     objc.thumb = [self.thumb copy];
     objc.dc_id = self.dc_id;
+    objc.version = self.version;
     objc.attributes = [self.attributes copy];
     
     return objc;
@@ -16689,6 +16944,97 @@
     objc.dc_id = self.dc_id;
     objc.attributes = [self.attributes copy];
     objc.compressor = [self.compressor copy];
+    
+    return objc;
+}
+        
+
+    
+-(id)initWithCoder:(NSCoder *)aDecoder {
+
+    if((self = [ClassStore deserialize:[aDecoder decodeObjectForKey:@"data"]])) {
+        
+    }
+    
+    return self;
+}
+        
+-(void)encodeWithCoder:(NSCoder *)aCoder {
+    [aCoder encodeObject:[ClassStore serialize:self] forKey:@"data"];
+}
+        
+
+        
+@end
+
+@implementation TL_document_old53
++(TL_document_old53*)createWithN_id:(long)n_id access_hash:(long)access_hash date:(int)date mime_type:(NSString*)mime_type size:(int)size thumb:(TLPhotoSize*)thumb dc_id:(int)dc_id attributes:(NSMutableArray*)attributes {
+	TL_document_old53* obj = [[TL_document_old53 alloc] init];
+	obj.n_id = n_id;
+	obj.access_hash = access_hash;
+	obj.date = date;
+	obj.mime_type = mime_type;
+	obj.size = size;
+	obj.thumb = thumb;
+	obj.dc_id = dc_id;
+	obj.attributes = attributes;
+	return obj;
+}
+-(void)serialize:(SerializedData*)stream {
+	[stream writeLong:self.n_id];
+	[stream writeLong:self.access_hash];
+	[stream writeInt:self.date];
+	[stream writeString:self.mime_type];
+	[stream writeInt:self.size];
+	[ClassStore TLSerialize:self.thumb stream:stream];
+	[stream writeInt:self.dc_id];
+	//Serialize FullVector
+	[stream writeInt:0x1cb5c415];
+	{
+		NSInteger tl_count = [self.attributes count];
+		[stream writeInt:(int)tl_count];
+		for(int i = 0; i < (int)tl_count; i++) {
+            TLDocumentAttribute* obj = [self.attributes objectAtIndex:i];
+            [ClassStore TLSerialize:obj stream:stream];
+		}
+	}
+}
+-(void)unserialize:(SerializedData*)stream {
+	super.n_id = [stream readLong];
+	super.access_hash = [stream readLong];
+	super.date = [stream readInt];
+	super.mime_type = [stream readString];
+	super.size = [stream readInt];
+	self.thumb = [ClassStore TLDeserialize:stream];
+	super.dc_id = [stream readInt];
+	//UNS FullVector
+	[stream readInt];
+	{
+		if(!self.attributes)
+			self.attributes = [[NSMutableArray alloc] init];
+		int count = [stream readInt];
+		for(int i = 0; i < count; i++) {
+			TLDocumentAttribute* obj = [ClassStore TLDeserialize:stream];
+            if(obj != nil && [obj isKindOfClass:[TLDocumentAttribute class]])
+                 [self.attributes addObject:obj];
+            else
+                break;
+		}
+	}
+}
+        
+-(TL_document_old53 *)copy {
+    
+    TL_document_old53 *objc = [[TL_document_old53 alloc] init];
+    
+    objc.n_id = self.n_id;
+    objc.access_hash = self.access_hash;
+    objc.date = self.date;
+    objc.mime_type = self.mime_type;
+    objc.size = self.size;
+    objc.thumb = [self.thumb copy];
+    objc.dc_id = self.dc_id;
+    objc.attributes = [self.attributes copy];
     
     return objc;
 }
@@ -20416,7 +20762,7 @@
 @end
 
 @implementation TL_chatInvite
-+(TL_chatInvite*)createWithFlags:(int)flags     title:(NSString*)title {
++(TL_chatInvite*)createWithFlags:(int)flags     title:(NSString*)title photo:(TLChatPhoto*)photo participants_count:(int)participants_count participants:(NSMutableArray*)participants {
 	TL_chatInvite* obj = [[TL_chatInvite alloc] init];
 	obj.flags = flags;
 	
@@ -20424,6 +20770,9 @@
 	
 	
 	obj.title = title;
+	obj.photo = photo;
+	obj.participants_count = participants_count;
+	obj.participants = participants;
 	return obj;
 }
 -(void)serialize:(SerializedData*)stream {
@@ -20433,6 +20782,18 @@
 	
 	
 	[stream writeString:self.title];
+	[ClassStore TLSerialize:self.photo stream:stream];
+	[stream writeInt:self.participants_count];
+	if(self.flags & (1 << 4)) {//Serialize FullVector
+	[stream writeInt:0x1cb5c415];
+	{
+		NSInteger tl_count = [self.participants count];
+		[stream writeInt:(int)tl_count];
+		for(int i = 0; i < (int)tl_count; i++) {
+            TLUser* obj = [self.participants objectAtIndex:i];
+            [ClassStore TLSerialize:obj stream:stream];
+		}
+	}}
 }
 -(void)unserialize:(SerializedData*)stream {
 	super.flags = [stream readInt];
@@ -20441,6 +20802,22 @@
 	
 	
 	super.title = [stream readString];
+	self.photo = [ClassStore TLDeserialize:stream];
+	super.participants_count = [stream readInt];
+	if(self.flags & (1 << 4)) {//UNS FullVector
+	[stream readInt];
+	{
+		if(!self.participants)
+			self.participants = [[NSMutableArray alloc] init];
+		int count = [stream readInt];
+		for(int i = 0; i < count; i++) {
+			TLUser* obj = [ClassStore TLDeserialize:stream];
+            if(obj != nil && [obj isKindOfClass:[TLUser class]])
+                 [self.participants addObject:obj];
+            else
+                break;
+		}
+	}}
 }
         
 -(TL_chatInvite *)copy {
@@ -20453,6 +20830,9 @@
     
     
     objc.title = self.title;
+    objc.photo = [self.photo copy];
+    objc.participants_count = self.participants_count;
+    objc.participants = [self.participants copy];
     
     return objc;
 }
@@ -20480,7 +20860,13 @@
 -(BOOL)isPublic {return (self.flags & (1 << 2)) > 0;}
                         
 -(BOOL)isMegagroup {return (self.flags & (1 << 3)) > 0;}
-            
+                        
+-(void)setParticipants:(NSMutableArray*)participants
+{
+   super.participants = participants;
+                
+    if(super.participants == nil)  { super.flags&= ~ (1 << 4) ;} else { super.flags|= (1 << 4); }
+}
         
 @end
 
@@ -20619,7 +21005,7 @@
             
 -(BOOL)isInstalled {return NO;}
                         
--(BOOL)isDisabled {return NO;}
+-(BOOL)isArchived {return NO;}
                         
 -(BOOL)isOfficial {return NO;}
             
@@ -20701,7 +21087,7 @@
             
 -(BOOL)isInstalled {return (self.flags & (1 << 0)) > 0;}
                         
--(BOOL)isDisabled {return (self.flags & (1 << 1)) > 0;}
+-(BOOL)isArchived {return (self.flags & (1 << 1)) > 0;}
                         
 -(BOOL)isOfficial {return (self.flags & (1 << 2)) > 0;}
             
@@ -25858,22 +26244,25 @@
 @end
         
 @implementation TL_messages_botCallbackAnswer
-+(TL_messages_botCallbackAnswer*)createWithFlags:(int)flags  message:(NSString*)message {
++(TL_messages_botCallbackAnswer*)createWithFlags:(int)flags  message:(NSString*)message url:(NSString*)url {
 	TL_messages_botCallbackAnswer* obj = [[TL_messages_botCallbackAnswer alloc] init];
 	obj.flags = flags;
 	
 	obj.message = message;
+	obj.url = url;
 	return obj;
 }
 -(void)serialize:(SerializedData*)stream {
 	[stream writeInt:self.flags];
 	
 	if(self.flags & (1 << 0)) {[stream writeString:self.message];}
+	if(self.flags & (1 << 2)) {[stream writeString:self.url];}
 }
 -(void)unserialize:(SerializedData*)stream {
 	super.flags = [stream readInt];
 	
 	if(self.flags & (1 << 0)) {super.message = [stream readString];}
+	if(self.flags & (1 << 2)) {super.url = [stream readString];}
 }
         
 -(TL_messages_botCallbackAnswer *)copy {
@@ -25883,6 +26272,7 @@
     objc.flags = self.flags;
     
     objc.message = self.message;
+    objc.url = self.url;
     
     return objc;
 }
@@ -25910,6 +26300,12 @@
    super.message = message;
                 
     if(super.message == nil)  { super.flags&= ~ (1 << 0) ;} else { super.flags|= (1 << 0); }
+}            
+-(void)setUrl:(NSString*)url
+{
+   super.url = url;
+                
+    if(super.url == nil)  { super.flags&= ~ (1 << 2) ;} else { super.flags|= (1 << 2); }
 }
         
 @end
@@ -26852,6 +27248,484 @@
                 
     if(super.entities == nil)  { super.flags&= ~ (1 << 3) ;} else { super.flags|= (1 << 3); }
 }
+        
+@end
+
+@implementation TLmessages_FeaturedStickers
+
+@end
+        
+@implementation TL_messages_featuredStickersNotModified
++(TL_messages_featuredStickersNotModified*)create {
+	TL_messages_featuredStickersNotModified* obj = [[TL_messages_featuredStickersNotModified alloc] init];
+	
+	return obj;
+}
+-(void)serialize:(SerializedData*)stream {
+	
+}
+-(void)unserialize:(SerializedData*)stream {
+	
+}
+        
+-(TL_messages_featuredStickersNotModified *)copy {
+    
+    TL_messages_featuredStickersNotModified *objc = [[TL_messages_featuredStickersNotModified alloc] init];
+    
+    
+    
+    return objc;
+}
+        
+
+    
+-(id)initWithCoder:(NSCoder *)aDecoder {
+
+    if((self = [ClassStore deserialize:[aDecoder decodeObjectForKey:@"data"]])) {
+        
+    }
+    
+    return self;
+}
+        
+-(void)encodeWithCoder:(NSCoder *)aCoder {
+    [aCoder encodeObject:[ClassStore serialize:self] forKey:@"data"];
+}
+        
+
+        
+@end
+
+@implementation TL_messages_featuredStickers
++(TL_messages_featuredStickers*)createWithN_hash:(int)n_hash sets:(NSMutableArray*)sets unread:(NSMutableArray*)unread {
+	TL_messages_featuredStickers* obj = [[TL_messages_featuredStickers alloc] init];
+	obj.n_hash = n_hash;
+	obj.sets = sets;
+	obj.unread = unread;
+	return obj;
+}
+-(void)serialize:(SerializedData*)stream {
+	[stream writeInt:self.n_hash];
+	//Serialize FullVector
+	[stream writeInt:0x1cb5c415];
+	{
+		NSInteger tl_count = [self.sets count];
+		[stream writeInt:(int)tl_count];
+		for(int i = 0; i < (int)tl_count; i++) {
+            TLStickerSetCovered* obj = [self.sets objectAtIndex:i];
+            [ClassStore TLSerialize:obj stream:stream];
+		}
+	}
+	//Serialize ShortVector
+	[stream writeInt:0x1cb5c415];
+	{
+		NSInteger tl_count = [self.unread count];
+		[stream writeInt:(int)tl_count];
+		for(int i = 0; i < (int)tl_count; i++) {
+            if([self.unread count] > i) {
+                NSNumber* obj = [self.unread objectAtIndex:i];
+			[stream writeLong:[obj longValue]];
+            }  else
+                break;
+		}
+	}
+}
+-(void)unserialize:(SerializedData*)stream {
+	super.n_hash = [stream readInt];
+	//UNS FullVector
+	[stream readInt];
+	{
+		if(!self.sets)
+			self.sets = [[NSMutableArray alloc] init];
+		int count = [stream readInt];
+		for(int i = 0; i < count; i++) {
+			TLStickerSetCovered* obj = [ClassStore TLDeserialize:stream];
+            if(obj != nil && [obj isKindOfClass:[TLStickerSetCovered class]])
+                 [self.sets addObject:obj];
+            else
+                break;
+		}
+	}
+	//UNS ShortVector
+	[stream readInt];
+	{
+		if(!self.unread)
+			self.unread = [[NSMutableArray alloc] init];
+		int tl_count = [stream readInt];
+		for(int i = 0; i < tl_count; i++) {
+			long obj = [stream readLong];
+			[self.unread addObject:@(obj)];
+		}
+	}
+}
+        
+-(TL_messages_featuredStickers *)copy {
+    
+    TL_messages_featuredStickers *objc = [[TL_messages_featuredStickers alloc] init];
+    
+    objc.n_hash = self.n_hash;
+    objc.sets = [self.sets copy];
+    objc.unread = [self.unread copy];
+    
+    return objc;
+}
+        
+
+    
+-(id)initWithCoder:(NSCoder *)aDecoder {
+
+    if((self = [ClassStore deserialize:[aDecoder decodeObjectForKey:@"data"]])) {
+        
+    }
+    
+    return self;
+}
+        
+-(void)encodeWithCoder:(NSCoder *)aCoder {
+    [aCoder encodeObject:[ClassStore serialize:self] forKey:@"data"];
+}
+        
+
+        
+@end
+
+@implementation TLmessages_RecentStickers
+
+@end
+        
+@implementation TL_messages_recentStickersNotModified
++(TL_messages_recentStickersNotModified*)create {
+	TL_messages_recentStickersNotModified* obj = [[TL_messages_recentStickersNotModified alloc] init];
+	
+	return obj;
+}
+-(void)serialize:(SerializedData*)stream {
+	
+}
+-(void)unserialize:(SerializedData*)stream {
+	
+}
+        
+-(TL_messages_recentStickersNotModified *)copy {
+    
+    TL_messages_recentStickersNotModified *objc = [[TL_messages_recentStickersNotModified alloc] init];
+    
+    
+    
+    return objc;
+}
+        
+
+    
+-(id)initWithCoder:(NSCoder *)aDecoder {
+
+    if((self = [ClassStore deserialize:[aDecoder decodeObjectForKey:@"data"]])) {
+        
+    }
+    
+    return self;
+}
+        
+-(void)encodeWithCoder:(NSCoder *)aCoder {
+    [aCoder encodeObject:[ClassStore serialize:self] forKey:@"data"];
+}
+        
+
+        
+@end
+
+@implementation TL_messages_recentStickers
++(TL_messages_recentStickers*)createWithN_hash:(int)n_hash stickers:(NSMutableArray*)stickers {
+	TL_messages_recentStickers* obj = [[TL_messages_recentStickers alloc] init];
+	obj.n_hash = n_hash;
+	obj.stickers = stickers;
+	return obj;
+}
+-(void)serialize:(SerializedData*)stream {
+	[stream writeInt:self.n_hash];
+	//Serialize FullVector
+	[stream writeInt:0x1cb5c415];
+	{
+		NSInteger tl_count = [self.stickers count];
+		[stream writeInt:(int)tl_count];
+		for(int i = 0; i < (int)tl_count; i++) {
+            TLDocument* obj = [self.stickers objectAtIndex:i];
+            [ClassStore TLSerialize:obj stream:stream];
+		}
+	}
+}
+-(void)unserialize:(SerializedData*)stream {
+	super.n_hash = [stream readInt];
+	//UNS FullVector
+	[stream readInt];
+	{
+		if(!self.stickers)
+			self.stickers = [[NSMutableArray alloc] init];
+		int count = [stream readInt];
+		for(int i = 0; i < count; i++) {
+			TLDocument* obj = [ClassStore TLDeserialize:stream];
+            if(obj != nil && [obj isKindOfClass:[TLDocument class]])
+                 [self.stickers addObject:obj];
+            else
+                break;
+		}
+	}
+}
+        
+-(TL_messages_recentStickers *)copy {
+    
+    TL_messages_recentStickers *objc = [[TL_messages_recentStickers alloc] init];
+    
+    objc.n_hash = self.n_hash;
+    objc.stickers = [self.stickers copy];
+    
+    return objc;
+}
+        
+
+    
+-(id)initWithCoder:(NSCoder *)aDecoder {
+
+    if((self = [ClassStore deserialize:[aDecoder decodeObjectForKey:@"data"]])) {
+        
+    }
+    
+    return self;
+}
+        
+-(void)encodeWithCoder:(NSCoder *)aCoder {
+    [aCoder encodeObject:[ClassStore serialize:self] forKey:@"data"];
+}
+        
+
+        
+@end
+
+@implementation TLmessages_ArchivedStickers
+
+@end
+        
+@implementation TL_messages_archivedStickers
++(TL_messages_archivedStickers*)createWithN_count:(int)n_count sets:(NSMutableArray*)sets {
+	TL_messages_archivedStickers* obj = [[TL_messages_archivedStickers alloc] init];
+	obj.n_count = n_count;
+	obj.sets = sets;
+	return obj;
+}
+-(void)serialize:(SerializedData*)stream {
+	[stream writeInt:self.n_count];
+	//Serialize FullVector
+	[stream writeInt:0x1cb5c415];
+	{
+		NSInteger tl_count = [self.sets count];
+		[stream writeInt:(int)tl_count];
+		for(int i = 0; i < (int)tl_count; i++) {
+            TLStickerSetCovered* obj = [self.sets objectAtIndex:i];
+            [ClassStore TLSerialize:obj stream:stream];
+		}
+	}
+}
+-(void)unserialize:(SerializedData*)stream {
+	super.n_count = [stream readInt];
+	//UNS FullVector
+	[stream readInt];
+	{
+		if(!self.sets)
+			self.sets = [[NSMutableArray alloc] init];
+		int count = [stream readInt];
+		for(int i = 0; i < count; i++) {
+			TLStickerSetCovered* obj = [ClassStore TLDeserialize:stream];
+            if(obj != nil && [obj isKindOfClass:[TLStickerSetCovered class]])
+                 [self.sets addObject:obj];
+            else
+                break;
+		}
+	}
+}
+        
+-(TL_messages_archivedStickers *)copy {
+    
+    TL_messages_archivedStickers *objc = [[TL_messages_archivedStickers alloc] init];
+    
+    objc.n_count = self.n_count;
+    objc.sets = [self.sets copy];
+    
+    return objc;
+}
+        
+
+    
+-(id)initWithCoder:(NSCoder *)aDecoder {
+
+    if((self = [ClassStore deserialize:[aDecoder decodeObjectForKey:@"data"]])) {
+        
+    }
+    
+    return self;
+}
+        
+-(void)encodeWithCoder:(NSCoder *)aCoder {
+    [aCoder encodeObject:[ClassStore serialize:self] forKey:@"data"];
+}
+        
+
+        
+@end
+
+@implementation TLmessages_StickerSetInstallResult
+
+@end
+        
+@implementation TL_messages_stickerSetInstallResultSuccess
++(TL_messages_stickerSetInstallResultSuccess*)create {
+	TL_messages_stickerSetInstallResultSuccess* obj = [[TL_messages_stickerSetInstallResultSuccess alloc] init];
+	
+	return obj;
+}
+-(void)serialize:(SerializedData*)stream {
+	
+}
+-(void)unserialize:(SerializedData*)stream {
+	
+}
+        
+-(TL_messages_stickerSetInstallResultSuccess *)copy {
+    
+    TL_messages_stickerSetInstallResultSuccess *objc = [[TL_messages_stickerSetInstallResultSuccess alloc] init];
+    
+    
+    
+    return objc;
+}
+        
+
+    
+-(id)initWithCoder:(NSCoder *)aDecoder {
+
+    if((self = [ClassStore deserialize:[aDecoder decodeObjectForKey:@"data"]])) {
+        
+    }
+    
+    return self;
+}
+        
+-(void)encodeWithCoder:(NSCoder *)aCoder {
+    [aCoder encodeObject:[ClassStore serialize:self] forKey:@"data"];
+}
+        
+
+        
+@end
+
+@implementation TL_messages_stickerSetInstallResultArchive
++(TL_messages_stickerSetInstallResultArchive*)createWithSets:(NSMutableArray*)sets {
+	TL_messages_stickerSetInstallResultArchive* obj = [[TL_messages_stickerSetInstallResultArchive alloc] init];
+	obj.sets = sets;
+	return obj;
+}
+-(void)serialize:(SerializedData*)stream {
+	//Serialize FullVector
+	[stream writeInt:0x1cb5c415];
+	{
+		NSInteger tl_count = [self.sets count];
+		[stream writeInt:(int)tl_count];
+		for(int i = 0; i < (int)tl_count; i++) {
+            TLStickerSetCovered* obj = [self.sets objectAtIndex:i];
+            [ClassStore TLSerialize:obj stream:stream];
+		}
+	}
+}
+-(void)unserialize:(SerializedData*)stream {
+	//UNS FullVector
+	[stream readInt];
+	{
+		if(!self.sets)
+			self.sets = [[NSMutableArray alloc] init];
+		int count = [stream readInt];
+		for(int i = 0; i < count; i++) {
+			TLStickerSetCovered* obj = [ClassStore TLDeserialize:stream];
+            if(obj != nil && [obj isKindOfClass:[TLStickerSetCovered class]])
+                 [self.sets addObject:obj];
+            else
+                break;
+		}
+	}
+}
+        
+-(TL_messages_stickerSetInstallResultArchive *)copy {
+    
+    TL_messages_stickerSetInstallResultArchive *objc = [[TL_messages_stickerSetInstallResultArchive alloc] init];
+    
+    objc.sets = [self.sets copy];
+    
+    return objc;
+}
+        
+
+    
+-(id)initWithCoder:(NSCoder *)aDecoder {
+
+    if((self = [ClassStore deserialize:[aDecoder decodeObjectForKey:@"data"]])) {
+        
+    }
+    
+    return self;
+}
+        
+-(void)encodeWithCoder:(NSCoder *)aCoder {
+    [aCoder encodeObject:[ClassStore serialize:self] forKey:@"data"];
+}
+        
+
+        
+@end
+
+@implementation TLStickerSetCovered
+
+@end
+        
+@implementation TL_stickerSetCovered
++(TL_stickerSetCovered*)createWithSet:(TLStickerSet*)set cover:(TLDocument*)cover {
+	TL_stickerSetCovered* obj = [[TL_stickerSetCovered alloc] init];
+	obj.set = set;
+	obj.cover = cover;
+	return obj;
+}
+-(void)serialize:(SerializedData*)stream {
+	[ClassStore TLSerialize:self.set stream:stream];
+	[ClassStore TLSerialize:self.cover stream:stream];
+}
+-(void)unserialize:(SerializedData*)stream {
+	self.set = [ClassStore TLDeserialize:stream];
+	self.cover = [ClassStore TLDeserialize:stream];
+}
+        
+-(TL_stickerSetCovered *)copy {
+    
+    TL_stickerSetCovered *objc = [[TL_stickerSetCovered alloc] init];
+    
+    objc.set = [self.set copy];
+    objc.cover = [self.cover copy];
+    
+    return objc;
+}
+        
+
+    
+-(id)initWithCoder:(NSCoder *)aDecoder {
+
+    if((self = [ClassStore deserialize:[aDecoder decodeObjectForKey:@"data"]])) {
+        
+    }
+    
+    return self;
+}
+        
+-(void)encodeWithCoder:(NSCoder *)aCoder {
+    [aCoder encodeObject:[ClassStore serialize:self] forKey:@"data"];
+}
+        
+
         
 @end
 

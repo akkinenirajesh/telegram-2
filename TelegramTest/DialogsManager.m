@@ -395,6 +395,10 @@
     [[Storage manager] deleteDialog:dialog completeHandler:^{
         [self.queue dispatchOnQueue:^{
             
+            [[Storage yap] readWriteWithBlock:^(YapDatabaseReadWriteTransaction * _Nonnull transaction) {
+                [transaction removeObjectForKey:dialog.cacheKey inCollection:BOT_COMMANDS];
+            }];
+            
             [Notification perform:DIALOG_DELETE data:@{KEY_DIALOG:dialog}];
             
             [Notification perform:MESSAGE_FLUSH_HISTORY data:@{KEY_DIALOG:dialog}];
@@ -454,7 +458,7 @@
         return;
     }
     
-    if((dialog.type == DialogTypeChat || dialog.type == DialogTypeChannel) && !dialog.chat.left && dialog.chat.type == TLChatTypeNormal) {
+    if((dialog.type == DialogTypeChat || dialog.type == DialogTypeChannel) && !dialog.chat.isLeft && dialog.chat.type == TLChatTypeNormal) {
         
         id request = [TLAPI_messages_deleteChatUser createWithChat_id:dialog.chat.n_id user_id:[[UsersManager currentUser] inputUser]];
         
@@ -564,6 +568,9 @@
         
         [self checkAndProccessGifMessage:message];
         
+        if(message.isN_out && message.media.document.isSticker) {
+            [MessageSender addRecentSticker:message.media.document];
+        }
         
         [self updateTop:message needUpdate:YES update_real_date:update_real_date];
         
@@ -610,7 +617,7 @@
     [self.queue dispatchOnQueue:^{
         
         
-        if([message.to_id isKindOfClass:[TL_peerChannel class]] && message.chat.left) {
+        if([message.to_id isKindOfClass:[TL_peerChannel class]] && message.chat.isLeft) {
             return;
         }
         
@@ -734,7 +741,6 @@
                 if(conversation) {
                     
 
-                    
                     conversation.unread_count= unread_count;
                     conversation.last_marked_message = max_id;
                     conversation.read_inbox_max_id = max_id;
@@ -773,7 +779,10 @@
                     
                 }
                 
-                dispatch_async(dqueue, completionHandler);
+                if(completionHandler) {
+                    dispatch_async(dqueue, completionHandler);
+                }
+                
                 
             }];
 
@@ -921,6 +930,10 @@
             [messages enumerateObjectsUsingBlock:^(TL_localMessage *message, NSUInteger idx, BOOL * _Nonnull stop) {
                 
                 [self checkAndProccessGifMessage:message];
+                
+                if(message.isN_out && message.media.document.isSticker) {
+                    [MessageSender addRecentSticker:message.media.document];
+                }
              
                 TL_conversation *dialog = message.conversation;
                 
@@ -958,10 +971,6 @@
                 
                 NSUInteger position = [self->list indexOfObject:obj];
                 
-                
-                
-
-                
                 [Notification perform:DIALOG_MOVE_POSITION data:@{KEY_DIALOG:obj, KEY_POSITION:@(position)}];
                 [Notification perform:[Notification notificationNameByDialog:obj action:@"message"] data:@{KEY_DIALOG:obj,KEY_LAST_CONVRESATION_DATA:[MessagesUtils conversationLastData:obj]}];
 
@@ -993,15 +1002,28 @@
     return success;
 }
 
-- (void)add:(NSArray *)all {
+- (SSignal *)add:(NSArray *)all {
     
-    [self add:all updateCurrent:YES];
+    return [self add:all updateCurrent:YES autoStart:YES];
+}
+
+- (SSignal *)add:(NSArray *)all autoStart:(BOOL)autoStart {
+    
+    return [self add:all updateCurrent:YES autoStart:autoStart];
+}
+
+- (SSignal *)add:(NSArray *)all updateCurrent:(BOOL)updateCurrent {
+    return [self add:all updateCurrent:YES autoStart:YES];
 }
 
 
-- (void)add:(NSArray *)all updateCurrent:(BOOL)updateCurrent {
+- (SSignal *)add:(NSArray *)all updateCurrent:(BOOL)updateCurrent autoStart:(BOOL)autoStart {
     
-    [self.queue dispatchOnQueue:^{
+    
+    SSignal *signal = [[[SSignal alloc] initWithGenerator:^id<SDisposable>(SSubscriber * subscriber) {
+        
+        __block BOOL dispose = NO;
+        
         [all enumerateObjectsUsingBlock:^(TL_conversation * dialog, NSUInteger idx, BOOL *stop) {
             TL_conversation *current = [keys objectForKey:@(dialog.peer_id)];
             if(current) {
@@ -1022,7 +1044,7 @@
                     current.invisibleChannel = dialog.invisibleChannel;
                     current.lastMessage = dialog.lastMessage;
                 }
-               
+                
             } else {
                 [self->list addObject:dialog];
                 [self->keys setObject:dialog forKey:@(dialog.peer_id)];
@@ -1034,10 +1056,31 @@
                 [current save];
             }
             
-            [self resort];
+            
+            *stop = dispose;
             
         }];
-    }];
+        
+        [self resort];
+        
+        [subscriber putNext:nil];
+        
+        
+        return [[SBlockDisposable alloc] initWithBlock:^
+                {
+                    dispose = YES;
+                }];
+    }] startOn:self.queue];
+    
+    
+    if(autoStart)
+        [signal startWithNext:^(id next) {
+            
+        }];
+    
+    
+    return signal;
+
 }
 
 - (TL_conversation *)findByUserId:(int)user_id {

@@ -214,6 +214,8 @@ static NSImage *higlightedImage() {
     
 }
 
+
+
 -(void)dealloc {
     
 }
@@ -247,6 +249,76 @@ static NSImage *higlightedImage() {
 
 -(void)stickersNeedFullReload:(NSNotification *)notification {
     [self load:YES];
+    
+}
+
+
+-(void)loadFeatured:(BOOL)force {
+    
+    
+    if(force || !isRemoteStickersLoaded()) {
+        __block int nhash = 0;
+        
+        __block NSArray *sets;
+        
+        [[Storage yap] readWithBlock:^(YapDatabaseReadTransaction * _Nonnull transaction) {
+            
+            nhash = [[transaction objectForKey:@"featured_hash" inCollection:STICKERS_COLLECTION] intValue];
+            sets = [transaction objectForKey:@"featuredSets" inCollection:STICKERS_COLLECTION];
+        }];
+        
+        [RPCRequest sendRequest:[TLAPI_messages_getFeaturedStickers createWithN_hash:nhash] successHandler:^(RPCRequest *request, TL_messages_featuredStickers *response) {
+            
+            
+            [[Storage yap] readWriteWithBlock:^(YapDatabaseReadWriteTransaction * _Nonnull transaction) {
+                
+                if(![response isKindOfClass:[TL_messages_featuredStickersNotModified class]]) {
+                    
+                    [transaction setObject:response.sets forKey:@"featuredSets" inCollection:STICKERS_COLLECTION];
+                    [transaction setObject:response.unread forKey:@"featuredUnreadSets" inCollection:STICKERS_COLLECTION];
+                    [transaction setObject:@(response.n_hash) forKey:@"featured_hash" inCollection:STICKERS_COLLECTION];
+                    
+                    sets = response.sets;
+                }
+            }];
+            
+  
+        } errorHandler:^(RPCRequest *request, RpcError *error) {
+            
+        }];
+    }
+    
+   
+
+}
+
+-(void)loadRecent:(BOOL)force {
+    
+    if(force || !isRemoteStickersLoaded()) {
+        
+        __block NSArray *stickers;
+        __block int nhash;
+        [[Storage yap] readWithBlock:^(YapDatabaseReadTransaction * _Nonnull transaction) {
+            
+            nhash = [[transaction objectForKey:@"remoteRecentHash" inCollection:STICKERS_COLLECTION] intValue];
+            stickers = [transaction objectForKey:@"remoteRecentStickers" inCollection:STICKERS_COLLECTION];
+        }];
+        
+        [RPCRequest sendRequest:[TLAPI_messages_getRecentStickers createWithN_hash:nhash] successHandler:^(RPCRequest *request, TL_messages_recentStickers *response) {
+            
+             if([response isKindOfClass:[TL_messages_recentStickers class]]) {
+                 [[Storage yap] readWriteWithBlock:^(YapDatabaseReadWriteTransaction * _Nonnull transaction) {
+                     [transaction setObject:[response.stickers mutableCopy] forKey:@"remoteRecentStickers" inCollection:STICKERS_COLLECTION];
+                     [transaction setObject:@(response.n_hash) forKey:@"remoteRecentHash" inCollection:STICKERS_COLLECTION];
+                 }];
+                [self reloadData];
+            }
+            
+        } errorHandler:^(RPCRequest *request, RpcError *error) {
+            
+        }];
+    }
+ 
 }
 
 -(void)stickersNeedReorder:(NSNotification *)notification {
@@ -284,6 +356,8 @@ static NSImage *higlightedImage() {
 
 -(void)load:(BOOL)force {
     
+    [self loadFeatured:force];
+    [self loadRecent:force];
     if(_stickers.count == 0 || force) {
         
         _isCustomStickerPack = NO;
@@ -304,6 +378,9 @@ static NSImage *higlightedImage() {
         }];
         
         if(!isRemoteStickersLoaded() || force) {
+            
+            
+            
             [RPCRequest sendRequest:[TLAPI_messages_getAllStickers createWithN_hash:[self stickersHash:_sets]] successHandler:^(RPCRequest *request, TL_messages_allStickers *response) {
                 
                 if(![response isKindOfClass:[TL_messages_allStickersNotModified class]]) {
@@ -409,45 +486,30 @@ static NSImage *higlightedImage() {
 
 
 -(void)loadChangedSets:(NSMutableArray *)changed sets:(NSArray *)sets hash:(int)n_hash {
-    TL_stickerSet *set = changed[0];
     
-    [changed removeObjectAtIndex:0];
+     NSMutableArray *signals = [NSMutableArray array];
     
-    [_stickers[@(set.n_id)] removeAllObjects];
-    
-    [self performLoadSet:set allSets:sets hash:n_hash save:YES completeHandler:^{
-        if(changed.count > 0) {
-            dispatch_after_seconds(0.2, ^{
-                [self loadChangedSets:changed sets:sets hash:n_hash];
-            });
-        }
-        
+    [changed enumerateObjectsUsingBlock:^(TL_stickerSet *set, NSUInteger idx, BOOL * _Nonnull stop) {
+        [signals addObject:[[MTNetwork instance] requestSignal:[TLAPI_messages_getStickerSet createWithStickerset:[TL_inputStickerSetID createWithN_id:set.n_id access_hash:set.access_hash]] queue:[ASQueue globalQueue]]];
     }];
-}
-
-
--(void)performLoadSet:(TL_stickerSet *)set allSets:(NSArray *)allSets hash:(int)n_hash save:(BOOL)save completeHandler:(dispatch_block_t)completeHandler {
     
     
-    [RPCRequest sendRequest:[TLAPI_messages_getStickerSet createWithStickerset:[TL_inputStickerSetID createWithN_id:set.n_id access_hash:set.access_hash]] successHandler:^(id request, TL_messages_stickerSet *response) {
+    [[SSignal combineSignals:signals] startWithNext:^(NSArray *next) {
         
-         _stickers[@(response.set.n_id)] = response.documents;
+        [next enumerateObjectsUsingBlock:^(TL_messages_stickerSet *obj, NSUInteger idx, BOOL * _Nonnull stop) {
+            _stickers[@(obj.set.n_id)] = obj.documents;
+        }];
         
         [self save:_sets stickers:_stickers n_hash:n_hash saveSets:YES];
-        
-        if(completeHandler != nil)
-            completeHandler();
         
         [ASQueue dispatchOnMainQueue:^{
             [self reloadData];
         }];
-        
-    } errorHandler:^(id request, RpcError *error) {
-        
-    } timeout:60 queue:[ASQueue globalQueue].nativeQueue];
-    
+    }];
     
 }
+
+
 
 -(NSDictionary *)allStickers {
     return _stickers;
@@ -465,8 +527,9 @@ static NSImage *higlightedImage() {
 
 
 -(void)reloadData {
-    
-    
+        
+    if(self.window == nil)
+        return;
     
     NSMutableArray *items = [[NSMutableArray alloc] init];
     
@@ -477,44 +540,13 @@ static NSImage *higlightedImage() {
     [[Storage yap] readWithBlock:^(YapDatabaseReadTransaction *transaction) {
         
         
-        NSMutableDictionary *sort = [transaction objectForKey:@"recentStickers" inCollection:STICKERS_COLLECTION];
-        
-        NSMutableArray *s = [NSMutableArray array];
-        
-        [sort enumerateKeysAndObjectsUsingBlock:^(id  _Nonnull set_id, id  _Nonnull obj, BOOL * _Nonnull stop) {
-            
-            [obj enumerateKeysAndObjectsUsingBlock:^(id  _Nonnull n_id, id  _Nonnull count, BOOL * _Nonnull stop) {
-                
-                [s addObject:@{@"count":count,@"n_id":n_id,@"set_id":set_id}];
-                
-            }];
-            
-        }];
-        
-        
-        [s sortUsingDescriptors:@[[NSSortDescriptor sortDescriptorWithKey:@"count" ascending:NO]]];
-
-        __block NSArray *recent = [NSArray array];
-        
-        [s enumerateObjectsUsingBlock:^(NSDictionary *obj, NSUInteger idx, BOOL * _Nonnull stop) {
-            
-            NSArray *setStickers = weakSelf.stickers[obj[@"set_id"]];
-            
-            TL_document *recentSticker = [[setStickers filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"self.n_id = %@",obj[@"n_id"]]] firstObject];
-            
-            if(recentSticker) {
-                recent = [recent arrayByAddingObject:recentSticker];
-            }
-            
-        }];
-        
+        NSArray *recent = @[];
         
         if(!weakSelf.isCustomStickerPack) {
-            recent = [recent subarrayWithRange:NSMakeRange(0, MIN(20,recent.count))];
-            
-        } else {
-            recent = @[];
+            recent = [transaction objectForKey:@"remoteRecentStickers" inCollection:STICKERS_COLLECTION];
+            recent = [recent subarrayWithRange:NSMakeRange(0, MIN(stickers_recent_limit(),recent.count))];
         }
+       
         
         weakSelf.hasRecentStickers = recent.count > 0;
         
@@ -540,6 +572,17 @@ static NSImage *higlightedImage() {
         if(row.count > 0) {
             [items addObject:[[TGAllStickersTableItem alloc] initWithObject:[row copy] packId:-1]];
             [row removeAllObjects];
+        }
+        
+        if(!_isCustomStickerPack && _sets.count == 0) {
+            NSDictionary *info  = [transaction objectForKey:@"modern_stickers" inCollection:STICKERS_COLLECTION];
+            
+            _stickers = info[@"serialized"];
+            
+            if(!_stickers)
+                _stickers = [NSMutableDictionary dictionary];
+            
+            _sets = info[@"sets"];
         }
         
         
@@ -591,9 +634,10 @@ static NSImage *higlightedImage() {
 }
 
 -(BOOL)removeAllItems:(BOOL)tableRedraw {
-    [TGCache removeAllCachedImages:@[STICKERSCACHE]];
+    
     
     if(tableRedraw) {
+        [TGCache removeAllCachedImages:@[STICKERSCACHE]];
         [super removeAllItems:NO];
         [super reloadData];
     } else {
@@ -741,6 +785,7 @@ static NSImage *higlightedImage() {
     [super clear];
     
 }
+
 
 
 

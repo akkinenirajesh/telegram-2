@@ -18,7 +18,6 @@
 #import "TGMessagesHintView.h"
 #import "TGCompressItem.h"
 #import "TGInputMessageTemplate.h"
-@class MessagesBottomView;
 
 @interface SearchSelectItem : NSObject
 @property (nonatomic,assign) BOOL isCurrent;
@@ -41,7 +40,6 @@ typedef enum {
 
 @property (nonatomic, strong) NSMutableArray *selectedMessages;
 @property (nonatomic, strong,readonly) MessagesTableView *table;
-@property (nonatomic, strong) MessagesBottomView *bottomView;
 @property (nonatomic,strong,readonly) TGInputMessageTemplate * editTemplate;
 
 
@@ -62,7 +60,7 @@ typedef enum {
 @property (nonatomic,copy) dispatch_block_t didUpdatedTable;
 
 - (void)sendTypingWithAction:(TLSendMessageAction *)action;
-- (void)sendMessage;
+
 - (void)setCellsEditButtonShow:(BOOL)show animated:(BOOL)animated;
 - (void)setSelectedMessage:(MessageTableItem *)item selected:(BOOL)selected;
 - (void)deleteSelectedMessages;
@@ -70,16 +68,19 @@ typedef enum {
 - (void)cancelSelectionAndScrollToBottom:(BOOL)scrollToBottom;
 - (void)unSelectAll:(BOOL)animated;
 - (void)bottomViewChangeSize:(int)height animated:(BOOL)animated;
-- (void)setStringValueToTextField:(NSString *)stringValue;
-- (NSString *)inputText;
+
+- (int)attachmentsCount;
 
 - (void)showForwardMessagesModalView;
+
+
+- (void)sendMessage;
 
 - (void)drop;
 
 //- (void)updateHeaderHeight:(BOOL)update animated:(BOOL)animated;
 - (void)jumpToLastMessages:(BOOL)force;
-- (void)saveInputText;
+- (void)recommendStickers;
 
 - (void)setCurrentConversation:(TL_conversation *)dialog withMessageJump:(TL_localMessage *)message;
 - (void)setCurrentConversation:(TL_conversation *)dialog withMessageJump:(TL_localMessage *)message force:(BOOL)force;
@@ -119,7 +120,7 @@ typedef enum {
 
 
 
-
+- (void)sendImage:(NSString *)file_path forConversation:(TL_conversation *)conversation file_data:(NSData *)data caption:(NSString *)caption;
 - (void)sendImage:(NSString *)file_path forConversation:(TL_conversation *)conversation file_data:(NSData *)data;
 - (void)sendVideo:(NSString *)file_path forConversation:(TL_conversation *)conversation;
 - (void)sendDocument:(NSString *)file_path forConversation:(TL_conversation *)conversation;
@@ -130,10 +131,13 @@ typedef enum {
 - (void)addImageAttachment:(NSString *)file_path forConversation:(TL_conversation *)conversation file_data:(NSData *)data addCompletionHandler:(dispatch_block_t)completeHandler;
 
 
+- (void)sendVideo:(NSString *)file_path forConversation:(TL_conversation *)conversation caption:(NSString *)caption addCompletionHandler:(dispatch_block_t)completeHandler;
+- (void)sendDocument:(NSString *)file_path forConversation:(TL_conversation *)conversation caption:(NSString *)caption addCompletionHandler:(dispatch_block_t)completeHandler;
+
+
 - (void)sendVideo:(NSString *)file_path forConversation:(TL_conversation *)conversation addCompletionHandler:(dispatch_block_t)completeHandler;
-;
 - (void)sendDocument:(NSString *)file_path forConversation:(TL_conversation *)conversation addCompletionHandler:(dispatch_block_t)completeHandler;
-;
+
 
 -(void)sendSticker:(TLDocument *)sticker forConversation:(TL_conversation *)conversation addCompletionHandler:(dispatch_block_t)completeHandler;
 
@@ -195,6 +199,6 @@ typedef enum {
 -(BOOL)isShownESGController;
 -(BOOL)canShownESGController;
 
--(BOOL)proccessEscAction;
+-(void)paste:(id)sender;
 
 @end

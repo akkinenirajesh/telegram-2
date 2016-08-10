@@ -118,7 +118,7 @@
     
     [items enumerateObjectsUsingBlock:^(TMRowItem *obj, NSUInteger idx, BOOL * _Nonnull stop) {
         
-        [self insertItemAtIndex:insertIndex+idx item:obj tile:NO];
+        [self insertItemAtIndex:insertIndex+idx item:obj tile:idx == items.count - 1];
         
     }];
     
@@ -137,7 +137,7 @@
 
 -(void)insertItemAtIndex:(NSUInteger)index item:(TMRowItem *)item tile:(BOOL)tile {
     
-    TMRowView *lastView = self.count > 0 ? _containerView.subviews[MAX(index-1,0)] : nil;
+    TMRowView *lastView = self.count > 0 ? _containerView.subviews[MAX((int)index-1,0)] : nil;
     
     [_items insertObject:item atIndex:index];
     
@@ -149,16 +149,31 @@
     [view redrawRow];
     item.table = (TMTableView *) self;
     
-    [view setFrameSize:NSMakeSize(NSWidth(_containerView.frame), height)];
+    [view setFrame:NSMakeRect(0, NSMaxY(lastView.frame), NSWidth(_containerView.frame), height)];
 
     [view setFrameOrigin:NSMakePoint(0, NSMaxY(lastView.frame))];
     
     [_containerView addSubview:view positioned:NSWindowAbove relativeTo:lastView];
     
-    [_containerView setFrameSize:NSMakeSize(NSWidth(_containerView.frame), self.containerHeight)];
-   
     if(tile)
+    {
+        [_containerView setFrameSize:NSMakeSize(NSWidth(_containerView.frame), self.containerHeight)];
         [self tile];
+    }
+    
+}
+
+-(void)reloadItem:(TMRowItem *)item {
+    
+    NSUInteger index = [_items indexOfObject:item];
+    
+    if(index != NSNotFound) {
+        TMRowView *view = _containerView.subviews[index];
+        view.rowItem = item;
+        [view redrawRow];
+        [view setFrameSize:NSMakeSize(NSWidth(_containerView.frame), [_mdelegate rowHeight:index item:item])];
+    }
+    
 }
 
 
@@ -483,10 +498,11 @@
     NSRange range = [self rangeOfRect:NSMakeRect(0, point.y, 0, 1)];
     
 
-    if(range.location != NSNotFound) {
+    if(range.location != NSNotFound && self.items.count > range.location && [self.items[range.location] isEditable]) {
        
         _prevHoleIndex = _currentHoleIndex;
         _currentHoleIndex = range.location;
+        
         
         [self moveHoleAtIndex:_prevHoleIndex toIndex:_currentHoleIndex animated:YES];
         

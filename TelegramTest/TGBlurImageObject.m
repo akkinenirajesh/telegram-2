@@ -22,11 +22,18 @@
         [TGImageObject.threadPool addTask:[[SThreadPoolTask alloc] initWithBlock:^(bool (^canceled)()) {
             
             strongWeak();
-            
-            if(strongSelf == weakSelf) {
-                [strongSelf proccessAndDispatchData:strongSelf.thumbData];
-            }
 
+            
+            @try {
+                if(strongSelf == weakSelf) {
+                    [strongSelf proccessAndDispatchData:strongSelf.thumbData];
+                }
+
+            } @catch (NSException *exception) {
+                
+            }
+            
+           
         }]];
     }
     
@@ -43,7 +50,7 @@
         [TGCache cacheImage:image forKey:[self cacheKey] groups:@[IMGCACHE]];
     }
     
-    [[ASQueue mainQueue] dispatchOnQueue:^{
+    [ASQueue dispatchOnMainQueue:^{
         [self.delegate didDownloadImage:image object:self];
     }];
 }

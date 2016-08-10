@@ -70,7 +70,7 @@ static NSCache *cItems;
         self.message = object;
         
         
-        if(self.message.media.caption.length > 0 || (self.message.media != nil && ![self.message.media isKindOfClass:[TL_messageMediaEmpty class]] && ![self.message.media isKindOfClass:[TL_messageMediaWebPage class]] && self.message.message.length > 0)) {
+        if(self.message.media.caption.length > 0 || (self.message.media != nil && ![self.message.media isKindOfClass:[TL_messageMediaEmpty class]] && ![self.message.media isKindOfClass:[TL_messageMediaWebPage class]] && self.message.message.length > 0 && self.message.media.bot_result == nil)) {
             NSMutableAttributedString *c = [[NSMutableAttributedString alloc] init];
             
             NSString *caption = self.message.media.caption.length > 0 ? self.message.media.caption : self.message.message;
@@ -422,7 +422,7 @@ static NSTextAttachment *channelViewsCountAttachment() {
 }
 
 - (void) setBlockSize:(NSSize)blockSize {
-    self->_blockSize = blockSize;
+    self->_blockSize = NSMakeSize(MAX(blockSize.width,100), blockSize.height);
     
     self.viewSize = NSMakeSize(blockSize.width, blockSize.height);
 }
@@ -450,7 +450,7 @@ static NSTextAttachment *channelViewsCountAttachment() {
             
            
             
-            if((message.media == nil || [message.media isKindOfClass:[TL_messageMediaEmpty class]]) || [message.media isMemberOfClass:[TL_messageMediaWebPage class]]) {
+            if((message.media == nil || [message.media isKindOfClass:[TL_messageMediaEmpty class]]) || [message.media isMemberOfClass:[TL_messageMediaWebPage class]] || message.message.length > 0) {
                 
                 objectReturn = [[MessageTableItemText alloc] initWithObject:message];
                 
@@ -824,7 +824,7 @@ static NSTextAttachment *channelViewsCountAttachment() {
 -(RPCRequest *)proccessInlineKeyboardButton:(TLKeyboardButton *)keyboard handler:(void (^)(TGInlineKeyboardProccessType type))handler {
     
     if(_messageSender == nil || _messageSender.state == MessageSendingStateSent) {
-        return [MessageSender proccessInlineKeyboardButton:keyboard messagesViewController:self.table.viewController conversation:_message.conversation messageId:_message.n_id handler:handler];
+        return [MessageSender proccessInlineKeyboardButton:keyboard messagesViewController:self.table.viewController conversation:_message.conversation message:_message handler:handler];
     }
     
     return nil;

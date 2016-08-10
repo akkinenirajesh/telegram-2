@@ -306,7 +306,7 @@ static NSDictionary *attributes() {
             [self.layer addSublayer:_shortUnread.layer];
         }
         
-        _shortUnread.color = self.item.conversation.isMute && ![SettingsArchiver checkMaskedSetting:IncludeMutedUnreadCount] ? NSColorFromRGB(0xd7d7d7) : NSColorFromRGB(0x4ba3e2);
+        _shortUnread.color = self.item.conversation.isMute && ![SettingsArchiver checkMaskedSetting:IncludeMutedUnreadCount] ? NSColorFromRGB(0xd7d7d7) : BLUE_COLOR;
         [_shortUnread setUnreadCount:self.item.unreadText];
         
     } else {
@@ -365,7 +365,7 @@ static NSDictionary *attributes() {
             [self checkMessageState];
         }
         
-    } queue:[ASQueue mainQueue].nativeQueue];
+    } queue:[ASQueue mainQueue]._dispatch_queue];
     
     [_timer start];
     [_timer fire];
@@ -451,7 +451,9 @@ static NSDictionary *attributes() {
                 stateImage = self.isSelected ? image_MessageStateSentWhite() : image_MessageStateSent();
             }
             
-            point = NSMakePoint(NSMinX(self.dateField.frame) - stateImage.size.width , NSHeight(self.frame) - stateImage.size.height - 10);
+            
+            
+            point = NSMakePoint(NSMinX(self.dateField.frame) - stateImage.size.width , NSHeight(self.frame) - stateImage.size.height - (self.class == [TGConversationTableCell class] ? 10 : 5));
             
         } else if(self.item.message.dstate == DeliveryStateError) {
             
@@ -530,7 +532,7 @@ static int unreadOffsetRight = 13;
         
     } else {
         if(!self.item.conversation.isMute || [SettingsArchiver checkMaskedSetting:IncludeMutedUnreadCount])
-            [NSColorFromRGB(0x4ba3e2) set];
+            [BLUE_COLOR set];
         else
             [NSColorFromRGB(0xd7d7d7) set];
     }

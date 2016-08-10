@@ -40,7 +40,11 @@ extern NSString *const KEY_LAST_CONVRESATION_DATA;
 extern NSString *const DIALOG_UPDATE; // просто обновить содержимое диалога
 extern NSString *const DIALOG_TO_TOP; // надо поднять диалог на самый верх.
 extern NSString *const DIALOG_DELETE; // надо поднять диалог на самый верх.
+extern NSString *const SWAP_DIALOG;
 extern NSString *const DIALOG_MOVE_POSITION; // сменить позацию диалога
+
+extern NSString *const DIALOGS_FLUSH_AND_RELOAD; // сменить позацию диалога
+
 
 extern NSString *const DIALOGS_NEED_FULL_RESORT; // надо полностью обновить список всех диалогов (многое изменилось)
 extern NSString *const DIALOG_CREATE_NEW; // создан новй диалог, надо его отобразить сверху
@@ -93,6 +97,10 @@ extern NSString *const UPDATE_CONTEXT_SWITCH;
 extern NSString *const UPDATE_MESSAGE_TEMPLATE;
 extern NSString *const CHAT_FLAGS_UPDATED;
 
+extern NSString *const ARCHIVE_STICKERS_CHANGED;
+
+extern NSString *const CONNECTION_STATUS_CHANGED;
+
 extern NSString *const KEY_PREVIEW_OBJECT;
 
 extern NSString *const KEY_USER;
@@ -144,6 +152,7 @@ extern NSString *const STICKERS_ALL_CHANGED;
 + (void)removeObserver:(id)target;
 
 + (NSString *) notificationNameByDialog:(TL_conversation *)dialog action:(NSString *) action;
++ (NSString *) cAction:(TL_conversation *)convesation action:(NSString *) action;
 
 + (NSString *)notificationForUser:(TLUser *)user action:(NSString *)action;
 //+ (NSString *) notificationNameForStatusUserId:(int)user_id;

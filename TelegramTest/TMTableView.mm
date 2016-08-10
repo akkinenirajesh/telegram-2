@@ -228,18 +228,18 @@ static TMTableView *tableStatic;
 	[self checkHover];
 }
 
-- (NSObject *) isItemInList:(NSObject*)item {
+- (id) isItemInList:(id)item {
     NSUInteger hash = [item hash];
     return [self itemByHash:hash];
 }
 
-- (NSObject *)selectedItem {
+- (id)selectedItem {
     if(self.listSelectedElementHash != NSNotFound)
         return [self itemByHash:self.listSelectedElementHash];
     return nil;
 }
 
-- (NSObject *) itemByHash:(NSUInteger)hash {
+- (id) itemByHash:(NSUInteger)hash {
     std::map<NSUInteger, id>::iterator it = self.listCacheHash->find(hash);
     if(it != self.listCacheHash->end())
         return it->second;
@@ -276,6 +276,10 @@ static TMTableView *tableStatic;
 - (BOOL) addItem:(NSObject *)item
        tableRedraw:(BOOL)tableRedraw {
     return [self insert:item atIndex:self.list.count tableRedraw:tableRedraw];
+}
+
+-(int)tableHeight {
+    return self.scrollView.documentSize.height;
 }
 
 - (BOOL) insert:(NSObject *)item
@@ -634,7 +638,6 @@ static TMTableView *tableStatic;
 
 -(void)setStickClass:(Class)stickClass {
     _stickClass = stickClass;
-    
     if(stickClass != nil) {
         
         [self addScrollEvent];
@@ -766,6 +769,19 @@ static TMTableView *tableStatic;
 
 -(void)removeScrollEvent {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+
+-(void)scrollToItem:(TMRowItem *)item animated:(BOOL)animated yOffset:(int)yOffset {
+    
+    NSRect rowRect = [self rectOfRow:[self indexOfItem:item]];
+    
+    NSPoint scrollOffset = self.scrollView.documentOffset;
+    
+    NSLog(@"%@",NSStringFromPoint(scrollOffset));
+    
+    [self.scrollView.clipView scrollRectToVisible:NSMakeRect(0, NSMinY(rowRect) + yOffset, NSWidth(rowRect),  NSHeight(self.scrollView.frame)) animated:animated];
+    
 }
 
 

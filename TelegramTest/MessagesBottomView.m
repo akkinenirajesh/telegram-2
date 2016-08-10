@@ -44,8 +44,6 @@
 @property (nonatomic, strong) TMView *normalView;
 @property (nonatomic, strong) TMView *secretInfoView;
 
-
-
 @property (nonatomic, strong) BTRButton *attachButton;
 @property (nonatomic, strong) BTRButton *smileButton;
 @property (nonatomic, strong) BTRButton *botKeyboardButton;
@@ -328,7 +326,7 @@
     
     if(self.dialog.type == DialogTypeUser) {
         [self.botCommandButton setHidden:!self.dialog.user.isBot];
-    } else if(self.dialog.type == DialogTypeChat || self.dialog.type == DialogTypeChannel) {
+    } else if(self.dialog.type == DialogTypeChat || (self.dialog.type == DialogTypeChannel && self.dialog.chat.isMegagroup)) {
         [self.botCommandButton setHidden:_chatFull.bot_info.count == 0];
     } else
         [self.botCommandButton setHidden:YES];
@@ -795,8 +793,7 @@ static RBLPopover *popover;
             }];
         }];
     });
-    
-    
+  
 }
 
 -(NSMenu *)attachMenu {
@@ -915,6 +912,8 @@ static RBLPopover *popover;
         [self.recordHelpLayer setTextColor:NSColorFromRGB(0xee6363)];
     }
 }
+
+
 
 - (void)setRecordHelperStringValue:(NSString *)string {
     self.recordHelpLayer.string = string;
@@ -1200,10 +1199,10 @@ static RBLPopover *popover;
                 }];
                 
                 
-            } timeout:0 queue:[ASQueue globalQueue].nativeQueue];
+            } timeout:0 queue:[ASQueue globalQueue]._dispatch_queue];
             
             
-        } else if(weakSelf.dialog.chat.isBroadcast  && !(weakSelf.dialog.chat.left || weakSelf.dialog.chat.isKicked)) {
+        } else if(weakSelf.dialog.chat.isBroadcast  && !(weakSelf.dialog.chat.isLeft || weakSelf.dialog.chat.isKicked)) {
             
             
             [weakSelf.dialog muteOrUnmute:^{
@@ -1213,7 +1212,7 @@ static RBLPopover *popover;
             } until:weakSelf.dialog.isMute ? 0 : 365*24*60*60];
             
             
-        } else if(weakSelf.dialog.type == DialogTypeChannel && (weakSelf.dialog.chat.left || weakSelf.dialog.chat.isKicked || weakSelf.dialog.chat.type == TLChatTypeForbidden)) {
+        } else if(weakSelf.dialog.type == DialogTypeChannel && (weakSelf.dialog.chat.isLeft || weakSelf.dialog.chat.isKicked || weakSelf.dialog.chat.type == TLChatTypeForbidden)) {
             [[DialogsManager sharedManager] deleteDialog:weakSelf.dialog completeHandler:nil];
             
         } else if(!weakSelf.dialog.canSendMessage && weakSelf.dialog.user.isBot && _onClickToLockedView == nil) {
@@ -1422,8 +1421,8 @@ static RBLPopover *popover;
 
 - (void)TMGrowingTextViewTextDidChange:(id)textView {
     
-    if(textView)
-        [self.messagesViewController saveInputText];
+   // if(textView)
+     //   [self.messagesViewController saveInputText];
     
     
     if( (([self.inputMessageTextField.stringValue trim].length > 0 || self.template.type == TGInputMessageTemplateTypeEditMessage) || self.fwdContainer || _imageAttachmentsController.isShown || _recordedAudioPreview != nil)) {
@@ -1468,54 +1467,12 @@ static RBLPopover *popover;
 
 -(void)checkMentionsOrTags {
     
-        
- NSRange range;
-    
-    NSString *search;
-    
-    NSRange selectedRange = self.inputMessageTextField.selectedRange;
-    
-        
-    
-    NSString *string = [self.inputMessageTextField string];
-    
-    int type = 0;
-    
-    // mention = 1
-    // hashtag = 2
-    // botCommand = 3
-    
-    NSUInteger originalLength = string.length;
 
-    while ((range = [string rangeOfString:@"@"]).location != NSNotFound || (range = [string rangeOfString:@"#"]).location != NSNotFound || (range = [string rangeOfString:@"/"]).location != NSNotFound) {
-        
-        type = [[string substringWithRange:range] isEqualToString:@"@"] ? 1 : ([[string substringWithRange:range] isEqualToString:@"#"] ? 2 : 3);
-        
-        search = [string substringFromIndex:range.location + 1];
-        
-        NSRange space = [search rangeOfString:@" "];
-        
-        if(space.location == NSNotFound)
-            space = [search rangeOfString:@"\n"];
-        
-        if(space.location != NSNotFound)
-            search = [search substringToIndex:space.location];
-        
-        
-        
-        if(search.length > 0) {
-            
-            if((selectedRange.location - (originalLength - string.length)) == range.location + search.length + 1)
-                break;
-            else
-                search = nil;
-        }
-        
-        string = [string substringFromIndex:range.location +1];
-        
-    }
     
-    
+    NSString *search = nil;
+    NSString *string = self.inputMessageTextField.string;
+    NSRange selectedRange = self.inputMessageTextField.selectedRange;
+    TGHintViewShowType type = [TGMessagesHintView needShowHint:string selectedRange:selectedRange completeString:&string searchString:&search];
     
     
    [self.inputMessageTextField setInline_placeholder:nil];
@@ -1543,8 +1500,11 @@ static RBLPopover *popover;
     if(search != nil && ![string hasPrefix:@" "]) {
         
         
+        NSString *check = [self.inputMessageTextField.string substringWithRange:NSMakeRange(selectedRange.location - 2,1)];
         
-        void (^callback)(NSString *fullUserName) = ^(NSString *fullUserName) {
+       
+        
+        void (^callback)(NSString *fullUserName, id object) = ^(NSString *fullUserName,id object) {
             NSMutableString *insert = [[self.inputMessageTextField string] mutableCopy];
             
             [insert insertString:fullUserName atIndex:selectedRange.location - search.length];
@@ -1553,22 +1513,24 @@ static RBLPopover *popover;
             
         };
         
-        if(type == 1) {
+        if(type == TGHintViewShowMentionType) {
             [self.messagesViewController.hintView showMentionPopupWithQuery:search conversation:self.dialog chat:self.dialog.chat allowInlineBot:[self.inputMessageTextField.string rangeOfString:@"@"].location == 0 choiceHandler:callback];
             
-        } else if(type == 2) {
+        } else if(type == TGHintViewShowHashtagType && [check isEqualToString:@" "]) {
             
             [self.messagesViewController.hintView showHashtagHintsWithQuery:search conversation:self.dialog peer_id:self.dialog.peer_id choiceHandler:callback];
             
-        } else if(type == 3 && [self.inputMessageTextField.string rangeOfString:@"/"].location == 0) {
+        } else if(type == TGHintViewShowBotCommandType && [self.inputMessageTextField.string rangeOfString:@"/"].location == 0) {
             if([_dialog.user isBot] || _dialog.fullChat.bot_info != nil) {
                 
-                [self.messagesViewController.hintView showCommandsHintsWithQuery:search conversation:self.dialog botInfo:_userFull ? @[_userFull.bot_info] : _dialog.fullChat.bot_info choiceHandler:^(NSString *command) {
-                    callback(command);
+                [self.messagesViewController.hintView showCommandsHintsWithQuery:search conversation:self.dialog botInfo:_userFull ? @[_userFull.bot_info] : _dialog.fullChat.bot_info choiceHandler:^(NSString *command, id object) {
+                    callback(command,object);
                     [self sendButtonAction];
                 }];
                 
             }
+        } else {
+             [self.messagesViewController.hintView hide];
         }
         
     } else if([self.inputMessageTextField.stringValue hasPrefix:@"@"] && self.dialog.type != DialogTypeSecretChat) {
@@ -1611,6 +1573,10 @@ static RBLPopover *popover;
     }
 }
 
+-(void)paste:(id)sender {
+    [_inputMessageTextField paste:sender];
+}
+
 -(void)setInlineBot:(TLUser *)inlineBot {
     _inlineBot = inlineBot;
     [self.sendButton setHidden:self.sendButton.isHidden || inlineBot != nil];
@@ -1629,8 +1595,6 @@ static RBLPopover *popover;
     [attr setFont:TGSystemFont(13) forRange:attr.range];
     
     return attr;
-    
-    
 }
 
 
@@ -1649,11 +1613,15 @@ static RBLPopover *popover;
     if(!_botKeyboard && keyboard) {
         
         _botKeyboard = [[TGBotCommandsKeyboard alloc] initWithFrame:NSMakeRect(self.attachButton.frame.origin.x + self.attachButton.frame.size.width + 21, NSHeight(self.inputMessageTextField.containerView.frame) + NSMinX(self.inputMessageTextField.frame) + 20 + (self.replyContainer ? 45 : 0), NSWidth(self.inputMessageTextField.containerView.frame), 30)];
+        [_botKeyboard setBackgroundColor:NSColorFromRGB(0xfafafa)];
         
         [self.normalView addSubview:_botKeyboard];
     } else {
-        [_botKeyboard removeFromSuperview];
-        _botKeyboard = nil;
+        if(!keyboard) {
+            [_botKeyboard removeFromSuperview];
+            _botKeyboard = nil;
+        }
+        
     }
     
    
@@ -1667,7 +1635,7 @@ static RBLPopover *popover;
         
         if(strongSelf == weakSelf) {
             
-            [MessageSender proccessInlineKeyboardButton:botCommand messagesViewController:strongSelf.messagesViewController conversation:keyboard.conversation messageId:0 handler:^(TGInlineKeyboardProccessType type) {
+            [MessageSender proccessInlineKeyboardButton:botCommand messagesViewController:strongSelf.messagesViewController conversation:keyboard.conversation message:nil handler:^(TGInlineKeyboardProccessType type) {
                 
                 [strongSelf.botKeyboard setProccessing:type == TGInlineKeyboardProccessingType forKeyboardButton:botCommand];
                 
@@ -1704,9 +1672,9 @@ static RBLPopover *popover;
         }
     }
 
-    if(self.replyContainer != nil) {
-        forceShow = NO;
-    }
+//    if(self.replyContainer != nil) {
+//        forceShow = NO;
+//    }
     
     [_botKeyboardButton setSelected:forceShow];
     [_botKeyboardButton setHidden:!_botKeyboard.isCanShow || self.replyContainer != nil || _template.type == TGInputMessageTemplateTypeEditMessage];
@@ -1851,8 +1819,10 @@ static RBLPopover *popover;
         }];
         
         
-        
-        [self.normalView addSubview:_replyContainer];
+        if(_botKeyboard)
+            [self.normalView addSubview:_replyContainer positioned:NSWindowBelow relativeTo:_botKeyboard];
+        else
+            [self.normalView addSubview:_replyContainer];
         
         if(updateHeight) {
             [self updateBottomHeight:animated];
@@ -1943,19 +1913,25 @@ static RBLPopover *popover;
     
     if(self.stateBottom == MessagesBottomViewNormalState) {
         
+        BOOL showkb = YES;
+        
         if(_imageAttachmentsController.isShown ) {
             height += 75;
+            showkb = NO;
         }
+        
+        
         
         if(self.replyContainer != nil || self.fwdContainer != nil || (self.webpageAttach != nil && self.inputMessageString.length > 0) || (_editMessageContainer != nil && !_editMessageContainer.isHidden)) {
             height+= MAX(MAX(MAX(NSHeight(self.replyContainer.frame),NSHeight(self.webpageAttach.frame)),NSHeight(self.fwdContainer.frame)),NSHeight(_editMessageContainer.frame)) + 5;
+             showkb = NO;
         }
         
         [_webpageAttach setHidden:_fwdContainer != nil];
         [_replyContainer setHidden:self.fwdContainer != nil || (self.webpageAttach != nil && self.inputMessageString.length > 0)];
         
         
-        if(_botKeyboard != nil) {
+        if(_botKeyboard != nil && (showkb || _replyContainer != nil)) {
             height+= (!_botKeyboard.isHidden ? NSHeight(_botKeyboard.frame) + 5 : 0);
         }
 
@@ -1985,7 +1961,7 @@ static RBLPopover *popover;
             
             [[_botKeyboard animator] setFrameOrigin:NSMakePoint(NSMinX(_botKeyboard.frame), NSHeight(self.inputMessageTextField.containerView.frame) + 20 )];
             
-            offset+=(!_botKeyboard.isHidden ? NSHeight(_botKeyboard.frame) : 0);
+            offset+=((_botKeyboard && !_botKeyboard.isHidden) ? NSHeight(_botKeyboard.frame) + 5 : 0);
 
             
             [[_imageAttachmentsController animator] setFrameOrigin:NSMakePoint(NSMinX(_imageAttachmentsController.frame), NSHeight(self.inputMessageTextField.containerView.frame) + 20 )];
@@ -2009,7 +1985,7 @@ static RBLPopover *popover;
             
             [_botKeyboard setFrameOrigin:NSMakePoint(NSMinX(_botKeyboard.frame), NSHeight(self.inputMessageTextField.containerView.frame) + 20 )];
             
-            offset+=(!_botKeyboard.isHidden ? NSHeight(_botKeyboard.frame) : 0);
+            offset+=((_botKeyboard && !_botKeyboard.isHidden) ? NSHeight(_botKeyboard.frame) + 5 : 0);
             
             [_imageAttachmentsController setFrameOrigin:NSMakePoint(NSMinX(_imageAttachmentsController.frame), NSHeight(self.inputMessageTextField.containerView.frame) + 20 )];
             
@@ -2134,7 +2110,7 @@ static RBLPopover *popover;
     if(checkElements) {
         [self removeQuickRecord];
         
-        [self setInputMessageString:_template.text ? _template.text : @"" disableAnimations:NO];
+       // [self setInputMessageString:_template.text ? _template.text : @"" disableAnimations:NO];
         
         if(_template.type == TGInputMessageTemplateTypeSimpleText) {
             [_imageAttachmentsController show:_dialog animated:YES];
@@ -2149,7 +2125,7 @@ static RBLPopover *popover;
         
         
     } else {
-        [self setInputMessageString:_template.text ? _template.text : @"" disableAnimations:YES];
+      //  [self setInputMessageString:_template.text ? _template.text : @"" disableAnimations:YES];
     }
     
     

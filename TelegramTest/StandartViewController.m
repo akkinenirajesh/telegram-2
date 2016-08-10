@@ -13,6 +13,7 @@
 #import "TGRecentSearchTableView.h"
 #import "ComposeActionCreateChannelBehavior.h"
 #import "ComposeActionCreateMegaGroupBehavior.h"
+#import "TGModernSearchvViewController.h"
 @interface StandartViewController ()<TMSearchTextFieldDelegate>
 @property (nonatomic, strong) BTRButton *topButton;
 @property (nonatomic, strong) TMSearchTextField *searchTextField;
@@ -43,23 +44,26 @@
     
     [super setFrameSize:newSize];
     
-    [self.controller.searchTextField setFrameSize:NSMakeSize(self.frame.size.width-70, 31)];
-        
-    [self.controller.topButton setFrameOrigin:NSMakePoint(self.frame.size.width == 70 ? 15 : (self.controller.searchTextField.frame.origin.y + self.controller.searchTextField.frame.size.width+11), 9)];
-    
+
+    [self.controller.searchTextField setHidden:newSize.width == 70];
     TMView *topView = self.subviews[0];
     
-    
+    [self.controller.searchTextField setFrameSize:NSMakeSize(NSWidth(self.frame) - 74, 31)];
     
     [topView setFrame:NSMakeRect(0, self.bounds.size.height - 48, self.bounds.size.width , 48)];
   
     
      if(newSize.width == 70)
     {
-        [self.controller.topButton setFrameOrigin:NSMakePoint(15, NSMinY(self.controller.topButton.frame))];
-    } else if(NSWidth(self.controller.view.frame) == 200) {
-        [self.controller.topButton setFrameOrigin:NSMakePoint(self.controller.searchTextField.frame.origin.y + self.controller.searchTextField.frame.size.width+11, NSMinY(self.controller.topButton.frame))];
+        [self.controller.topButton setCenterByView:self.controller.topButton.superview];
+    } else if(NSWidth(self.controller.view.frame) > 70) {
+        
+
+        int x = NSMaxX(_controller.searchTextField.frame) + roundf((NSWidth(topView.frame) - NSMaxX(_controller.searchTextField.frame) - NSWidth(_controller.topButton.frame))/2.0f);
+        [self.controller.topButton setFrameOrigin:NSMakePoint(x, NSMinY(self.controller.topButton.frame))];
     }
+    
+
 
 }
 
@@ -71,7 +75,7 @@
 
 -(void)loadView {
     
-    ExtendView *exView = [[ExtendView alloc] initWithFrame: self.frameInit];
+   ExtendView *exView = [[ExtendView alloc] initWithFrame: self.frameInit];
     
     
     self.view = exView;
@@ -101,29 +105,31 @@
     [self.view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
     
     
-    self.searchTextField = [[TMSearchTextField alloc] initWithFrame:NSMakeRect(10, 8 , 205, 29)];
+    self.searchTextField = [[TMSearchTextField alloc] initWithFrame:NSMakeRect(10, 8 , NSWidth(topView.frame) - 74, 31)];
     
-    
+    [self.searchTextField setCenteredYByView:topView];
     
     
      self.searchTextField.delegate = self;
     [self.searchTextField setAutoresizingMask:NSViewWidthSizable];
     [topView addSubview:self.searchTextField];
     
-    int buttonX = self.view.frame.size.width == 70 ? 15 : (self.searchTextField.frame.origin.y + self.searchTextField.frame.size.width+11);
-    
-    
     NSImage *compose = [NSImage imageNamed:@"ComposeNewMsg"];
     NSImage *composeActive = [NSImage imageNamed:@"ComposeNewMsgActive"];
     
-    self.topButton = [[BTRButton alloc] initWithFrame:NSMakeRect(buttonX, 9, 38, 29)];
     
-    [self.topButton setBackgroundImage:compose forControlState:BTRControlStateNormal];
-    [self.topButton setBackgroundImage:composeActive forControlState:BTRControlStateSelected];
-    [self.topButton setBackgroundImage:composeActive forControlState:BTRControlStateSelected | BTRControlStateHover];
-    [self.topButton setBackgroundImage:composeActive forControlState:BTRControlStateHighlighted];
-    [self.topButton setFrameSize:compose.size];
+    int buttonX = self.view.frame.size.width == 70 ? 22 : NSMaxX(_searchTextField.frame) + roundf((NSWidth(topView.frame) - NSMaxX(_searchTextField.frame) - compose.size.width)/2.0f);
     
+    
+    self.topButton = [[BTRButton alloc] initWithFrame:NSMakeRect(buttonX, 9, 38, 30)];
+
+    
+    [self.topButton setImage:compose forControlState:BTRControlStateNormal];
+    [self.topButton setImage:composeActive forControlState:BTRControlStateSelected];
+    [self.topButton setImage:composeActive forControlState:BTRControlStateSelected | BTRControlStateHover];
+    [self.topButton setImage:composeActive forControlState:BTRControlStateHighlighted];
+    
+    [_topButton setCenteredYByView:topView];
     
     [self.topButton setAutoresizingMask:NSViewMinXMargin];
     
@@ -145,7 +151,7 @@
         [self.menuPopover setHoverView:self.topButton];
     }
     
-    _searchViewController = [[SearchViewController alloc] initWithFrame:self.view.bounds];
+    _searchViewController = [[TGModernSearchvViewController alloc] initWithFrame:self.view.bounds];
     
     self.searchView = _searchViewController.view;
     
@@ -246,8 +252,7 @@
     
     [self hideSearch:!hidden];
     
-    [self.searchViewController searchByString:searchString ? searchString : @""];
-    
+    [self.searchViewController search:searchString ? searchString : @""];
     
 }
 

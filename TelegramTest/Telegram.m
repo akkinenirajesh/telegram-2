@@ -26,7 +26,8 @@
 @implementation Telegram
 
 +(void)setConnectionState:(ConnectingStatusType)state {
-    [[Telegram rightViewController].navigationViewController.nagivationBarView setConnectionState:state];
+    [Notification perform:CONNECTION_STATUS_CHANGED data:@{KEY_DATA:@(state)}];
+
 }
 
 + (Telegram *)sharedInstance {
@@ -104,7 +105,7 @@ Telegram *TelegramInstance() {
     self.accountStatusTimer = [[TGTimer alloc] initWithTimeout:ONLINE_EXPIRE - 5 repeat:YES completion:^{
         _isOnline = NO;
         [self setAccountOnline];
-    } queue:[ASQueue globalQueue].nativeQueue];
+    } queue:[ASQueue globalQueue]._dispatch_queue];
     [self.accountStatusTimer start];
 }
 
@@ -112,6 +113,7 @@ static int max_chat_users = 199;
 static int max_broadcast_users = 100;
 static int megagroup_size_max = 5000;
 static int rating_e_decay_l = 2419200;
+static int stickers_recent_limit_l = 30;
 
 static int edit_time_limit_default = 2*24*60*60;
 
@@ -146,6 +148,13 @@ int maxBroadcastUsers() {
     return max_broadcast_users;
 }
 
+int stickers_recent_limit() {
+    return stickers_recent_limit_l;
+}
+
+void set_stickers_recent_limit(int limit) {
+    stickers_recent_limit_l = MAX(30, limit);
+}
 
 void setMegagroupSizeMax(int b) {
     megagroup_size_max = b;
@@ -184,7 +193,7 @@ int megagroupSizeMax() {
         if(!self.accountOfflineStatusTimer) {
             self.accountOfflineStatusTimer = [[TGTimer alloc] initWithTimeout:OFFLINE_AFTER repeat:NO completion:^{
                 [self setAccountOffline:YES];
-            } queue:[ASQueue globalQueue].nativeQueue];
+            } queue:[ASQueue globalQueue]._dispatch_queue];
             [self.accountOfflineStatusTimer start];
         }
     }
@@ -394,7 +403,9 @@ static TGEnterPasswordPanel *panel;
             
             if(response.users.count == 1) {
                 
-                [[UsersManager sharedManager] add:response.users withCustomKey:@"n_id" update:YES];
+                [[[UsersManager sharedManager] add:response.users autoStart:NO] startWithNext:^(id next) {
+                    [[Storage manager] insertUsers:next];
+                }];
                 
                 user = response.users[0];
                 

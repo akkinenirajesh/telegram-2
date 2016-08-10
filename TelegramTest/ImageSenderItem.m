@@ -7,8 +7,6 @@
 //
 
 #import "ImageSenderItem.h"
-#import "ImageCache.h"
-#import "ImageStorage.h"
 #import "FileUtils.h"
 #import "ImageUtils.h"
 #import "PreviewObject.h"
@@ -28,7 +26,7 @@
     [super setState:state];
 }
 
-- (id)initWithImage:(NSImage *)image jpegData:(NSData *)jpegData forConversation:(TL_conversation *)conversation additionFlags:(int)additionFlags {
+- (id)initWithImage:(NSImage *)image jpegData:(NSData *)jpegData forConversation:(TL_conversation *)conversation additionFlags:(int)additionFlags caption:(NSString *)caption {
     if(self = [super initWithConversation:conversation]) {
         
         
@@ -64,7 +62,7 @@
         [sizes addObject:size];
         [sizes addObject:size1];
 
-        TL_messageMediaPhoto *photo = [TL_messageMediaPhoto createWithPhoto:[TL_photo createWithN_id:rand_long() access_hash:0 date:(int)[[MTNetwork instance] getTime] sizes:sizes] caption:@""];
+        TL_messageMediaPhoto *photo = [TL_messageMediaPhoto createWithPhoto:[TL_photo createWithN_id:rand_long() access_hash:0 date:(int)[[MTNetwork instance] getTime] sizes:sizes] caption:caption];
         
         
         [TGCache cacheImage:renderedImage([[NSImage alloc] initWithData:jpegNormalizedData(image)], maxSize) forKey:size.location.cacheKey groups:@[IMGCACHE]];
@@ -188,7 +186,7 @@
             
             strongSelf.state = MessageSendingStateError;
             
-        } timeout:0 queue:[ASQueue globalQueue].nativeQueue];
+        } timeout:0 queue:[ASQueue globalQueue]._dispatch_queue];
         
     }];
     

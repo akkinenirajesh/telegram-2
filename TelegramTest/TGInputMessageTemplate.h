@@ -18,7 +18,7 @@ typedef enum {
 
 
 @property (nonatomic,assign,readonly) TGInputMessageTemplateType type;
-@property (nonatomic,strong,readonly) NSString *text;
+@property (nonatomic,strong,readonly) NSAttributedString *attributedString;
 @property (nonatomic,assign,readonly) int postId;
 @property (nonatomic,assign,readonly) int peer_id;
 
@@ -26,28 +26,31 @@ typedef enum {
 
 @property (nonatomic,strong,readonly) TL_localMessage *replyMessage;
 
-@property (nonatomic,strong,readonly) NSString *originalText;
-
 @property (nonatomic,assign) BOOL autoSave;
 @property (nonatomic,strong) NSString *disabledWebpage;
 
 @property (nonatomic,assign) BOOL applyNextNotification;
 
+@property (nonatomic,strong) NSArray *forwardMessages;
+
 -(BOOL)noWebpage;
 
 -(void)setReplyMessage:(TL_localMessage *)replyMessage save:(BOOL)save;
--(void)updateTextAndSave:(NSString *)newText;
+-(void)updateTextAndSave:(NSAttributedString *)newText;
+-(SSignal *)updateSignalText:(NSAttributedString *)newText;
 -(void)saveForce;
 -(NSString *)textWithEntities:(NSMutableArray *)entities;
 -(void)updateTemplateWithDraft:(TLDraftMessage *)draft;
 
--(id)initWithType:(TGInputMessageTemplateType)type text:(NSString *)text peer_id:(int)peer_id;
--(id)initWithType:(TGInputMessageTemplateType)type text:(NSString *)text peer_id:(int)peer_id postId:(int)postId;
+-(id)initWithType:(TGInputMessageTemplateType)type text:(NSAttributedString *)text peer_id:(int)peer_id;
+-(id)initWithType:(TGInputMessageTemplateType)type text:(NSAttributedString *)text peer_id:(int)peer_id postId:(int)postId;
 
 
 -(void)saveTemplateInCloudIfNeeded;
 
 +(TGInputMessageTemplate *)templateWithType:(TGInputMessageTemplateType)type ofPeerId:(int)peer_id;
 -(void)performNotification;
+-(void)performNotification:(BOOL)swap;
+-(NSString *)webpage;
 
 @end
